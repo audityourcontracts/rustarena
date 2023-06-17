@@ -37,12 +37,15 @@ impl Cli {
                             let contract_data = process_out_directory(&repo.name);
 
                             // Print repository name
-                            println!("Repository: {}", &repo.name);
+                            
 
-                            for (contract_name, bytecode) in contract_data {
-                                // Print contract name and bytecode
-                                println!("Contract: {}", contract_name);
-                                println!("Bytecode: {:?}", bytecode);
+                            for (r, details) in contract_data {
+                                println!("Repository: {}", &r);
+                                for d in details {
+                                    // Print contract name and bytecode
+                                    println!("Contract Name: {}", d.0);
+                                    println!("Bytecode: {}", d.1);
+                                }
                             }
                         }
                         Err(err) => {
