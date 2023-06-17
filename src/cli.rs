@@ -35,7 +35,15 @@ impl Cli {
                             log::info!("Repo cloned from {} to {}", &repo.url, &repo.name);
                             process_repository(&repo.name);
                             let contract_data = process_out_directory(&repo.name);
-                            println!("{:?}", contract_data.first())
+
+                            // Print repository name
+                            println!("Repository: {}", &repo.name);
+
+                            for (contract_name, bytecode) in contract_data {
+                                // Print contract name and bytecode
+                                println!("Contract: {}", contract_name);
+                                println!("Bytecode: {:?}", bytecode);
+                            }
                         }
                         Err(err) => {
                             eprintln!("Error cloning repo: {}", err);
