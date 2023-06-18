@@ -104,8 +104,19 @@ pub fn process_repository(repo_directory: &str) {
     }
 }
 
+// To sort by the type of contract. Interfaces have the bytecode 0x
+pub struct Contract {
+    pub repo_name: String,
+    pub contract_name: String,
+    pub contract_kind: ContractKind,
+    pub bytecode: String,
+}
+pub enum ContractKind {
+    Interface,
+    Contract,
+}
 
-pub fn process_out_directory(repo_directory: &str) -> Vec<(String, Vec<(String, String)>)> {
+pub fn process_out_directory(repo_directory: &str) -> Vec<Contract> {
     let out_dir = Path::new(&repo_directory).join("out");
     log::info!("Looking for build contracts in {}", &out_dir.to_string_lossy());
     let mut results = Vec::new();
@@ -122,7 +133,19 @@ pub fn process_out_directory(repo_directory: &str) -> Vec<(String, Vec<(String, 
                     if let Ok(json_content) = fs::read_to_string(&json_file) {
                         let out_directory: OutDirectory = serde_json::from_str(&json_content).unwrap_or_default();
                         let bytecode_object = out_directory.bytecode.object;
-                        results.push((repo_directory.to_owned(), vec![(contract_name.to_owned(), bytecode_object)]));
+
+                        let contract_kind = if bytecode_object.starts_with("0x") {
+                            ContractKind::Interface
+                        } else {
+                            ContractKind::Contract
+                        };
+        
+                        results.push(Contract {
+                            repo_name: repo_directory.to_owned(),
+                            contract_name: contract_name.to_owned(),
+                            contract_kind,
+                            bytecode: bytecode_object.to_owned(),
+                        });
                     } else {
                         //eprintln!("Error parsing JSON file");
                     }
