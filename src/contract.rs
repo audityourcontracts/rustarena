@@ -9,17 +9,54 @@ use serde_derive::Serialize;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct OutDirectory {
-    abi: Vec<serde_json::Value>,
-    bytecode: Bytecode,
+pub struct OutDirectory {
+    pub abi: Vec<Abi>,
+    pub bytecode: Bytecode,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Bytecode {
-    object: String,
-    source_map: String,
-    link_references: serde_json::Value,
+pub struct Abi {
+    pub inputs: Vec<Input>,
+    pub state_mutability: Option<String>,
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub name: Option<String>,
+    pub anonymous: Option<bool>,
+    #[serde(default)]
+    pub outputs: Vec<Output>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Input {
+    pub internal_type: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub indexed: Option<bool>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Output {
+    pub internal_type: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub type_field: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Bytecode {
+    pub object: String,
+    pub source_map: String,
+    pub link_references: LinkReferences,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkReferences {
 }
 
 pub fn process_repository(repo_directory: &str) {
