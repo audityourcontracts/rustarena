@@ -37,16 +37,17 @@ impl Cli {
                         Ok(_) => {
                             log::info!("Repo cloned from {} to {}", &repo.url, &repo.name);
                             process_repository(&repo.name);
-                            let mut contract_data = process_out_directory(&repo.name);
+                            let (repo_name, contract_data) = process_out_directory(&repo.name);
 
-                            contract_data.sort_by_key(|contract| match contract.contract_kind {
+                            let mut sorted_contracts = contract_data;
+                            sorted_contracts.sort_by_key(|contract| match contract.contract_kind {
                                 ContractKind::Interface => 0,
                                 ContractKind::Contract => 1,
                             });
 
                             // Enumerate the Vec<Contract> received by calling process_out_directory
-                            for contract in contract_data {
-                                println!("Repository: {}", contract.repo_name);
+                            for contract in sorted_contracts {
+                                println!("Repository: {}", repo_name);
                                 println!("Contract Name: {}", contract.contract_name);
 
                                 match contract.contract_kind {

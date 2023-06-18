@@ -106,7 +106,6 @@ pub fn process_repository(repo_directory: &str) {
 
 // To sort by the type of contract. Interfaces have the bytecode 0x
 pub struct Contract {
-    pub repo_name: String,
     pub contract_name: String,
     pub contract_kind: ContractKind,
     pub bytecode: String,
@@ -116,7 +115,7 @@ pub enum ContractKind {
     Contract,
 }
 
-pub fn process_out_directory(repo_directory: &str) -> Vec<Contract> {
+pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
     let out_dir = Path::new(&repo_directory).join("out");
     log::info!("Looking for build contracts in {}", &out_dir.to_string_lossy());
     let mut results = Vec::new();
@@ -141,7 +140,6 @@ pub fn process_out_directory(repo_directory: &str) -> Vec<Contract> {
                         };
         
                         results.push(Contract {
-                            repo_name: repo_directory.to_owned(),
                             contract_name: contract_name.to_owned(),
                             contract_kind,
                             bytecode: bytecode_object.to_owned(),
@@ -159,6 +157,6 @@ pub fn process_out_directory(repo_directory: &str) -> Vec<Contract> {
     } else {
         eprintln!("Error getting directory entries");
     }
-    results
+    (repo_directory.to_owned(), results)
 }
 
