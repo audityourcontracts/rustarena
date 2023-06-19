@@ -49,7 +49,10 @@ impl Cli {
                             for contract in sorted_contracts {
                                 println!("Repository: {}", repo_name);
                                 println!("Contract Name: {}", contract.contract_name);
-
+                                match &contract.imports {
+                                    Some(imports) => println!("Number of imports: {}", imports.len()),
+                                    None => println!("Number of imports: 0"),
+                                }
                                 match contract.contract_kind {
                                     ContractKind::Interface => {
                                         println!("Contract Type: Interface");
