@@ -19,14 +19,14 @@ pub struct Metadata {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Abi {
-    pub inputs: Vec<Input>,
+    pub inputs: Option<Vec<Input>>,
     pub state_mutability: Option<String>,
     #[serde(rename = "type")]
     pub type_field: String,
     pub name: Option<String>,
     pub anonymous: Option<bool>,
     #[serde(default)]
-    pub outputs: Vec<Output>,
+    pub outputs: Option<Vec<Output>>
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -69,7 +69,7 @@ pub struct Ast {
     pub node_type: String,
     pub src: String,
     pub nodes: Vec<Node>,
-    pub license: String,
+    pub license: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -197,7 +197,14 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                     log::debug!("Processing JSON file: {}", json_file.to_string_lossy());
         
                     if let Ok(json_content) = fs::read_to_string(&json_file) {
-                        let metadata: Metadata = serde_json::from_str(&json_content).unwrap_or_default();
+                        let metadata: Metadata = match serde_json::from_str(&json_content) {
+                            Ok(metadata) => metadata,
+                            Err(parseerr) => {
+                                eprintln!("Error parsing JSON '{}': {}", json_file.to_string_lossy(), parseerr);
+                                continue;
+                            }
+                        };
+
                         let bytecode_object = metadata.bytecode.object;
 
                         let contract_kind = if bytecode_object.eq("0x") {
@@ -213,10 +220,9 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                             imports: None, // first pass no imports.
                         };
                         contract_map.insert(contract_name.to_owned(), contract.to_owned());
-                        //results.push(contract.to_owned());
 
                     } else {
-                        //eprintln!("Error parsing JSON file");
+                        eprintln!("Error reading JSON file '{}'", json_file.to_string_lossy());
                     }
                 } else {
                     eprintln!("Error reading JSON file");
@@ -247,8 +253,13 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                     log::debug!("Processing JSON file: {}", json_file.to_string_lossy());
         
                     if let Ok(json_content) = fs::read_to_string(&json_file) {
-                        let metadata: Metadata = serde_json::from_str(&json_content).unwrap_or_default();
-
+                        let metadata: Metadata = match serde_json::from_str(&json_content) {
+                            Ok(metadata) => metadata,
+                            Err(parseerr) => {
+                                eprintln!("Error parsing JSON file '{}': {}", json_file.to_string_lossy(), parseerr);
+                                continue;
+                            }
+                        };
                         // Read the imports for the current contract_name
                         // Retrieve the contract name from the HashMap and update its imports.
                         if let Some(contract) = contract_map.get_mut(contract_name) {
@@ -272,7 +283,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                             eprintln!("Error retrieving contract from HashMap");
                         }
                     } else {
-                        eprintln!("Error parsing JSON file");
+                        eprintln!("Error reading JSON file '{}'", json_file.to_string_lossy());
                     }
                 } else {
                     eprintln!("Error reading JSON file");
