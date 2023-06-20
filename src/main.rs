@@ -2,6 +2,7 @@ mod html_parsing;
 mod github_api;
 mod contract;
 mod cli;
+mod c4parser;
 
 use cli::Cli;
 use env_logger;

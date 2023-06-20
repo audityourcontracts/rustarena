@@ -1,4 +1,5 @@
-use crate::html_parsing;
+use crate::html_parsing::{WebsiteParser};
+use crate::c4parser::{Code4renaParser};
 use crate::github_api;
 use crate::contract::{process_repository, process_out_directory, ContractKind};
 use clap::Parser;
@@ -27,10 +28,12 @@ impl Cli {
         let args = Args::parse();
         let website_url = &args.website;
 
+        let c4parser = Code4renaParser{};
+
         // Add some information logging 
         log::info!("Parsing website {}", website_url);
         // Parse the dom, clone the repo, process the repo, print the results
-        match html_parsing::parse_dom(website_url) {
+        match c4parser.parse_dom(website_url) {
             Ok(repos) => {
                 for repo in repos {
                     match github_api::clone_repository(&repo.url, &repo.name) {
