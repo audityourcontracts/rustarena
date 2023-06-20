@@ -4,6 +4,7 @@ use std::path::{Path};
 use std::fs;
 use std::env;
 use std::collections::HashMap;
+use walkdir::WalkDir;
 
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
@@ -184,117 +185,107 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
     // Contract map stores a mapping from contract name to Contract.
     let mut contract_map: HashMap<String, Contract> = HashMap::new();
 
-    // The results we will return.
-    //let mut results = Vec::new();
+    let walker = WalkDir::new(&out_dir).into_iter();
 
-    if let Ok(entries) = fs::read_dir(&out_dir) {
-        let mut entry_count = 0;
-        
-        for entry in entries.flatten() {
-            if let Ok(entry_path) = entry.path().canonicalize() {
-                if let Some(contract_name) = entry_path.file_name().and_then(|name| name.to_str().map(|s| s.trim_end_matches(".sol"))) {
-                    let json_file = entry_path.join(format!("{}.json", contract_name));
-                    log::debug!("Processing JSON file: {}", json_file.to_string_lossy());
-        
-                    if let Ok(json_content) = fs::read_to_string(&json_file) {
-                        let metadata: Metadata = match serde_json::from_str(&json_content) {
-                            Ok(metadata) => metadata,
-                            Err(parseerr) => {
-                                eprintln!("Error parsing JSON '{}': {}", json_file.to_string_lossy(), parseerr);
-                                continue;
-                            }
-                        };
+    // First pass will find all json files, parse them and add them to a contract_map
+    // Imports are None at this stage as they are populated in the second pass. 
 
-                        let bytecode_object = metadata.bytecode.object;
+    for entry in walker.flatten() {
+        let entry_path = entry.path();
 
-                        let contract_kind = if bytecode_object.eq("0x") {
-                            ContractKind::Interface
-                        } else {
-                            ContractKind::Contract
-                        };
+        if entry_path.is_file() {
+            if let Some(extension) = entry_path.extension() {
+                if extension == "json" {
+                    if let Some(file_stem) = entry_path.file_stem() {
+                        if let Some(contract_name) = file_stem.to_str() {
+                            let json_content = match fs::read_to_string(&entry_path) {
+                                Ok(content) => content,
+                                Err(err) => {
+                                    eprintln!("Error reading JSON file '{}': {}", entry_path.display(), err);
+                                    continue;
+                                }
+                            };
 
-                        let contract = Contract {
-                            contract_name: contract_name.to_owned(),
-                            contract_kind,
-                            bytecode: bytecode_object.to_owned(),
-                            imports: None, // first pass no imports.
-                        };
-                        contract_map.insert(contract_name.to_owned(), contract.to_owned());
+                            let metadata: Metadata = match serde_json::from_str(&json_content) {
+                                Ok(metadata) => metadata,
+                                Err(err) => {
+                                    eprintln!("Error parsing JSON file '{}': {}", entry_path.display(), err);
+                                    continue;
+                                }
+                            };
 
-                    } else {
-                        eprintln!("Error reading JSON file '{}'", json_file.to_string_lossy());
+                            let bytecode_object = metadata.bytecode.object;
+
+                            let contract_kind = if bytecode_object == "0x" {
+                                ContractKind::Interface
+                            } else {
+                                ContractKind::Contract
+                            };
+
+                            let contract = Contract {
+                                contract_name: contract_name.to_owned(),
+                                contract_kind,
+                                bytecode: bytecode_object.to_owned(),
+                                imports: None,
+                            };
+                            contract_map.insert(contract_name.to_owned(), contract);
+                        }
                     }
-                } else {
-                    eprintln!("Error reading JSON file");
-                } 
-            } 
-            entry_count += 1;
+                }
+            }
         }
-        log::info!("Number of entries found: {}", entry_count);
-    } else {
-        eprintln!("Error getting directory entries");
     }
 
-    // Add contract imports. This means reading all the directories again
-    // And for each import for a given contract
-    // Retrieve the contract from the hash map and add all of it's imports.
-    // This should result in a hashmap of String (contract name) to Contract.
-    // Then I can turn this HashMap into a Vec<Contract> and return it.
+    // In the second pass we read the json file, parse the imports.
+    // Then look for the contract in the hashmap and if it's there 
+    // We append the imports to the contract's imports field.
 
-    if let Ok(entries) = fs::read_dir(&out_dir) {
-        let mut entry_count = 0;
+    let contract_map_clone = contract_map.clone();
 
-        let contract_map_clone = contract_map.clone();
-        
-        for entry in entries.flatten() {
-            if let Ok(entry_path) = entry.path().canonicalize() {
-                if let Some(contract_name) = entry_path.file_name().and_then(|name| name.to_str().map(|s| s.trim_end_matches(".sol"))) {
-                    let json_file = entry_path.join(format!("{}.json", contract_name));
-                    log::debug!("Processing JSON file: {}", json_file.to_string_lossy());
-        
-                    if let Ok(json_content) = fs::read_to_string(&json_file) {
-                        let metadata: Metadata = match serde_json::from_str(&json_content) {
-                            Ok(metadata) => metadata,
-                            Err(parseerr) => {
-                                eprintln!("Error parsing JSON file '{}': {}", json_file.to_string_lossy(), parseerr);
-                                continue;
-                            }
-                        };
-                        // Read the imports for the current contract_name
-                        // Retrieve the contract name from the HashMap and update its imports.
-                        if let Some(contract) = contract_map.get_mut(contract_name) {
-                            for node in metadata.ast.nodes {
-                                if node.node_type == "ImportDirective" {
-                                    for symbol_alias in node.symbol_aliases {
-                                        let foreign_name = symbol_alias.foreign.name.clone();
-                    
-                                        if let Some(imported_contract) = contract_map_clone.get(&foreign_name) {
-                                            if contract.imports.is_none() {
-                                                contract.imports = Some(Vec::new());
-                                            }
-                                            if let Some(imports) = contract.imports.as_mut() {
-                                                imports.push(imported_contract.clone());
-                                            }
-                                        }
+    let walker = WalkDir::new(&out_dir).into_iter();
+
+    for entry in walker.flatten() {
+        let entry_path = entry.path();
+
+        if entry_path.is_file() && entry_path.extension() == Some("json".as_ref()) {
+            if let Some(file_stem) = entry_path.file_stem() {
+                if let Some(contract_name) = file_stem.to_str() {
+                    let json_content = match fs::read_to_string(&entry_path) {
+                        Ok(content) => content,
+                        Err(err) => {
+                            eprintln!("Error reading JSON file '{}': {}", entry_path.display(), err);
+                            continue;
+                        }
+                    };
+
+                    let metadata: Metadata = match serde_json::from_str(&json_content) {
+                        Ok(metadata) => metadata,
+                        Err(parseerr) => {
+                            eprintln!("Error parsing JSON file '{}': {}", entry_path.display(), parseerr);
+                            continue;
+                        }
+                    };
+
+                    if let Some(contract) = contract_map.get_mut(contract_name) {
+                        for node in metadata.ast.nodes {
+                            if node.node_type == "ImportDirective" {
+                                for symbol_alias in node.symbol_aliases {
+                                    let foreign_name = symbol_alias.foreign.name.clone();
+
+                                    if let Some(imported_contract) = contract_map_clone.get(&foreign_name) {
+                                        contract.imports.get_or_insert_with(Vec::new).push(imported_contract.clone());
                                     }
                                 }
                             }
-                        } else {
-                            eprintln!("Error retrieving contract from HashMap");
                         }
                     } else {
-                        eprintln!("Error reading JSON file '{}'", json_file.to_string_lossy());
+                        eprintln!("Error retrieving contract from HashMap");
                     }
-                } else {
-                    eprintln!("Error reading JSON file");
-                } 
-            } 
-            entry_count += 1;
+                }
+            }
         }
-        log::info!("Number of entries found: {}", entry_count);
     }
-
-    // contract_map should have all contracts witha all imports
+    // contract_map should have all contracts with all imports
     let contracts: Vec<Contract> = contract_map.values().cloned().collect();
     (repo_directory.to_owned(), contracts)
 }
