@@ -200,7 +200,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                         let metadata: Metadata = serde_json::from_str(&json_content).unwrap_or_default();
                         let bytecode_object = metadata.bytecode.object;
 
-                        let contract_kind = if bytecode_object.starts_with("0x") {
+                        let contract_kind = if bytecode_object.eq("0x") {
                             ContractKind::Interface
                         } else {
                             ContractKind::Contract
