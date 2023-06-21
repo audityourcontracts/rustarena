@@ -4,5 +4,5 @@ pub struct Repo {
 }
 
 pub trait WebsiteParser {
-    fn parse_dom(&self, website_url: &str) -> Result<Vec<Repo>, Box<dyn std::error::Error>>;
+    fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error>>;
 }

@@ -1,5 +1,5 @@
 use crate::html_parsing::{WebsiteParser};
-use crate::c4parser::{Code4renaParser};
+use crate::parser_c4::{Code4renaParser};
 use crate::github_api;
 use crate::contract::{process_repository, process_out_directory, ContractKind};
 use clap::Parser;
@@ -8,9 +8,6 @@ use log;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short, long)]
-    website: String,
-
     #[arg(short, long)]
     truncate: bool,
 }
@@ -26,14 +23,13 @@ impl Cli {
 
     pub fn run(&self) {
         let args = Args::parse();
-        let website_url = &args.website;
 
-        let c4parser = Code4renaParser{};
+        let c4parser = Code4renaParser::new();
 
         // Add some information logging 
-        log::info!("Parsing website {}", website_url);
+        log::info!("Parsing website {}", c4parser.url);
         // Parse the dom, clone the repo, process the repo, print the results
-        match c4parser.parse_dom(website_url) {
+        match c4parser.parse_dom() {
             Ok(repos) => {
                 for repo in repos {
                     match github_api::clone_repository(&repo.url, &repo.name) {

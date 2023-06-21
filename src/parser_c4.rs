@@ -5,11 +5,21 @@ use url::Url;
 
 use crate::html_parsing::{WebsiteParser, Repo};
 
+// Parses the content from https://code4rena.com/contests
+pub struct Code4renaParser {
+    pub url: String,
+}
 
-pub struct Code4renaParser;
+impl Code4renaParser {
+    pub fn new() -> Self {
+        Code4renaParser {
+            url: "https://code4rena.com/contests".to_string(),
+        }
+    }
+}
 
 impl WebsiteParser for Code4renaParser {
-    fn parse_dom(&self, website_url: &str) -> Result<Vec<Repo>, Box<dyn std::error::Error>>  {
+    fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error>>  {
         let launch_options= LaunchOptionsBuilder::default()
             .headless(true)  // Enable browser window
             .build()
@@ -17,7 +27,7 @@ impl WebsiteParser for Code4renaParser {
     
         let browser = Browser::new(launch_options)?;
         let tab = browser.new_tab()?;
-        tab.navigate_to(website_url).unwrap();
+        tab.navigate_to(&self.url).unwrap();
     
         // Wait until navigation is completed
         tab.wait_until_navigated()?;
