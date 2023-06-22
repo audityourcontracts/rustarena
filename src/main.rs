@@ -3,6 +3,7 @@ mod github_api;
 mod contract;
 mod cli;
 mod parser_c4;
+mod parser_sherlock;
 
 use cli::Cli;
 use env_logger;

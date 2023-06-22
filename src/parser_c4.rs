@@ -5,7 +5,6 @@ use url::Url;
 
 use crate::html_parsing::{WebsiteParser, Repo};
 
-// Parses the content from https://code4rena.com/contests
 pub struct Code4renaParser {
     pub url: String,
 }
@@ -52,12 +51,17 @@ impl WebsiteParser for Code4renaParser {
                     log::info!("Found github link {}", link);
                     let url = link.to_string();
                     let name = format!("repos/{}", get_last_path_part(&url.as_str()).unwrap());
-                    let repo = Repo { url, name };
+                    let commit = None;
+                    let repo = Repo { url, name, commit };
                     repos.push(repo);
                 }
             }
         }
         Ok(repos)
+    }
+    
+    fn url(&self) -> &str {
+        &self.url
     }
 }
 
