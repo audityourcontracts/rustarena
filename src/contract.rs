@@ -166,7 +166,7 @@ pub fn process_repository(repo_directory: &str) {
     let cache_dir = Path::new(&repo_directory).join("cache");
     if !cache_dir.exists() || !cache_dir.is_dir() {
         eprintln!("Error: 'cache' directory not found in {}", repo_directory);
-        exit(1);
+        //exit(1);
     }
     
     // Check if "out" directory exists
@@ -174,7 +174,7 @@ pub fn process_repository(repo_directory: &str) {
     log::info!("Checking for the out directory {}", out_dir.to_string_lossy());
     if !out_dir.exists() {
         eprintln!("Error: 'out' directory {} not found in {}", out_dir.to_string_lossy(), repo_directory);
-        exit(1);
+        //exit(1);
     }
 }
 
