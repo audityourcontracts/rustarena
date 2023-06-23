@@ -48,7 +48,7 @@ impl WebsiteParser for Code4renaParser {
         for element in document.select(&selector) {
             if let Some(link) = element.value().attr("href") {
                 if link.contains("github.com") && link != "https://github.com/code-423n4/" && link != "https://github.com/code-423n4/media-kit" {
-                    log::info!("Found github link {}", link);
+                    log::debug!("Found github link {}", link);
                     let url = link.to_string();
                     let name = format!("repos/{}", get_last_path_part(&url.as_str()).unwrap());
                     let commit = None;

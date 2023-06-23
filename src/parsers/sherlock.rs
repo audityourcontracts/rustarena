@@ -98,7 +98,7 @@ impl WebsiteParser for SherlockParser {
                                 if link.contains("github.com") {
                                     // Parse the github url for repo and commit
                                     if let Some((url, repo, sha)) = github_api::parse_github_url(link) {
-                                        log::info!("Found github link {}. Cloning {} with sha {}", url, repo, sha);
+                                        log::debug!("Found github link {}. Cloning {} with sha {}", url, repo, sha);
                                         let name = format!("repos/{}", repo);
                                         let commit = Some(sha);
                                         let repo = Repo { url, name, commit};
