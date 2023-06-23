@@ -56,7 +56,7 @@ pub struct Output {
 #[serde(rename_all = "camelCase")]
 pub struct Bytecode {
     pub object: String,
-    pub source_map: String,
+    pub source_map: Option<String>,
     pub link_references: LinkReferences,
 }
 
@@ -118,7 +118,7 @@ pub struct Foreign {
     pub id: i64,
     pub name: String,
     pub node_type: String,
-    pub referenced_declaration: i64,
+    pub referenced_declaration: Option<i64>,
     pub src: String,
 } 
 pub struct ForgeBuilder;
@@ -178,7 +178,7 @@ impl Build for ForgeBuilder {
 
 pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
     let out_dir = Path::new(&repo_directory).join("out");
-    log::info!("Looking for build contracts in {}", &out_dir.to_string_lossy());
+    log::info!("Looking for built contracts in {}", &out_dir.to_string_lossy());
 
     // Contract map stores a mapping from contract name to Contract.
     let mut contract_map: HashMap<String, Contract> = HashMap::new();
