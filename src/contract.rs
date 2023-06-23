@@ -1,5 +1,4 @@
 use log;
-use std::path::{Path};
 use walkdir::WalkDir;
 use crate::builders::build::Build;
 use crate::builders::forge::ForgeBuilder;
@@ -58,5 +57,6 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
             }
         }
     }
+    // If none of the builders have returned we don't have anything.
     Ok(("".to_string(), Vec::new()))
 }

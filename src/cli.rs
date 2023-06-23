@@ -26,7 +26,7 @@ impl Cli {
         let args = Args::parse();
 
         let parsers: Vec<Box<dyn WebsiteParser>> = vec![
-            Box::new(Code4renaParser::new()),
+            //Box::new(Code4renaParser::new()),
             Box::new(SherlockParser::new()),
         ];
 
@@ -36,10 +36,8 @@ impl Cli {
             match parser.parse_dom() {
                 Ok(repos) => {
                     for repo in repos {
-                        match github_api::clone_repository(&repo.url, &repo.name) {
+                        match github_api::clone_repository(&repo) {
                             Ok(_) => {
-                                log::info!("Repo cloned from {} to {}", &repo.url, &repo.name);
-                                
                                 match process_repository(&repo.name) {
                                     Ok((repo_name, contract_data)) => {
                                         let mut sorted_contracts = contract_data;
