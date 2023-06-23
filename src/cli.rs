@@ -26,7 +26,7 @@ impl Cli {
         let args = Args::parse();
 
         let parsers: Vec<Box<dyn WebsiteParser>> = vec![
-            //Box::new(Code4renaParser::new()),
+            Box::new(Code4renaParser::new()),
             Box::new(SherlockParser::new()),
         ];
 
