@@ -1,49 +1,34 @@
 use log;
 use std::fs;
-use git2::{Object, Oid, Repository};
+use git2::{Oid, Repository};
 use url::Url;
+use crate::parsers::parse::Repo;
 
-pub fn clone_repository(url: &str, directory: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn clone_repository(repository: &Repo) -> Result<(), Box<dyn std::error::Error>> {
     // Check if the directory exists
-    if fs::metadata(directory).is_ok() {
+    if fs::metadata(&repository.name).is_ok() {
         // Remove the directory if it exists
-        fs::remove_dir_all(directory)?;
+        fs::remove_dir_all(&repository.name)?;
     }
     
     // Clone the repository
-    log::info!("Cloning the repo {}", url);
-    Repository::clone(url, directory)?;
-    
-    Ok(())
-}
-
-pub fn clone_repository_with_sha(link: &str, directory: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // Check if the directory exists
-    if fs::metadata(directory).is_ok() {
-        // Remove the directory if it exists
-        fs::remove_dir_all(directory)?;
-    }
-
-    if let Some((url, repo, commit)) = parse_github_url(link) {
-        println!("URL to clone: {}", &url);
-        println!("Repository: {}", &repo);
-        println!("SHA Hash: {}", &commit);
-        log::info!("Cloning the repo {}", repo);
-
-        Repository::clone(&url, directory).unwrap();
-        let repo: Repository = Repository::open(directory).unwrap();
-        let obj: Object = repo.find_commit(Oid::from_str(&commit).unwrap()).unwrap().into_object();
-        repo.checkout_tree(&obj, None).unwrap();
-        repo.set_head_detached(obj.id()).unwrap();
+    if repository.commit.is_none() {
+        log::info!("Cloning the repo {}", &repository.url);
+        Repository::clone(&repository.url, &repository.name).unwrap();
     } else {
-        println!("Invalid GitHub URL");
+        if let Some(commit) = &repository.commit {
+            log::info!("Cloning the repo {} at commit {}", &repository.url, &commit);
+            Repository::clone(&repository.url, &repository.name).map_err(|err| {
+                err
+            })?;
+            let repo: Repository = Repository::open(&repository.name).unwrap();
+            let obj = repo.find_commit(Oid::from_str(commit).unwrap()).unwrap().into_object();
+            repo.checkout_tree(&obj, None).unwrap();
+            repo.set_head_detached(obj.id()).unwrap();
+        }
     }
-
-
-
     Ok(())
 }
-
 
 pub fn parse_github_url(url: &str) -> Option<(String, String, String)> {
     let parsed_url = Url::parse(url).ok()?;
