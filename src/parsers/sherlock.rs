@@ -2,12 +2,10 @@ use reqwest;
 use serde_json;
 use markdown;
 use scraper::{Html, Selector};
-use url::Url;
-
 use crate::github_api;
 
 
-use crate::html_parsing::{WebsiteParser, Repo};
+use crate::parsers::parse::{WebsiteParser, Repo};
 pub struct SherlockParser{
     pub url: String,
 }
