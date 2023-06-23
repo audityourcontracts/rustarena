@@ -1,6 +1,6 @@
 use crate::html_parsing::{WebsiteParser};
-use crate::parser_c4::{Code4renaParser};
-use crate::parser_sherlock::{SherlockParser};
+use crate::parsers::code4rena::{Code4renaParser};
+use crate::parsers::sherlock::{SherlockParser};
 use crate::github_api;
 use crate::contract::{process_repository, process_out_directory, ContractKind};
 use clap::Parser;

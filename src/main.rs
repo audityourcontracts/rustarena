@@ -2,8 +2,10 @@ mod html_parsing;
 mod github_api;
 mod contract;
 mod cli;
-mod parser_c4;
-mod parser_sherlock;
+mod parsers {
+    pub mod sherlock;
+    pub mod code4rena;
+}
 
 use cli::Cli;
 use env_logger;
