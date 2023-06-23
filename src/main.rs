@@ -1,10 +1,15 @@
-mod html_parsing;
 mod github_api;
 mod contract;
 mod cli;
 mod parsers {
+    pub mod parse;
     pub mod sherlock;
     pub mod code4rena;
+}
+mod builders {
+    pub mod build;
+    pub mod forge;
+    pub mod hardhat;
 }
 
 use cli::Cli;

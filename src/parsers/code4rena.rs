@@ -3,7 +3,7 @@ use log;
 use scraper::{Html, Selector};
 use url::Url;
 
-use crate::html_parsing::{WebsiteParser, Repo};
+use crate::parsers::parse::{WebsiteParser, Repo};
 
 pub struct Code4renaParser {
     pub url: String,
