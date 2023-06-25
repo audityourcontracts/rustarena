@@ -132,7 +132,7 @@ impl Build for ForgeBuilder {
             .output();
     
         if let Err(err) = install_result {
-            eprintln!("Error executing 'forge install': {}", err);
+            log::error!("Error executing 'forge install': {}", err);
             exit(1);
         }
     
@@ -144,7 +144,7 @@ impl Build for ForgeBuilder {
             .output();
     
         if let Err(err) = build_result {
-            eprintln!("Error executing 'forge build': {}", err);
+            log::error!("Error executing 'forge build': {}", err);
             exit(1);
         }
     
@@ -156,7 +156,7 @@ impl Build for ForgeBuilder {
     
         let cache_dir = Path::new(&directory).join("cache");
         if !cache_dir.exists() || !cache_dir.is_dir() {
-            eprintln!("Error: 'cache' directory not found in {}", directory);
+            log::error!("Error: 'cache' directory not found in {}", directory);
             //exit(1);
         }
         
@@ -164,7 +164,7 @@ impl Build for ForgeBuilder {
         let out_dir = Path::new(&directory).join("out");
         log::info!("Checking for the out directory {}", out_dir.to_string_lossy());
         if !out_dir.exists() {
-            eprintln!("Error: 'out' directory {} not found in {}", out_dir.to_string_lossy(), directory);
+            log::error!("Error: 'out' directory {} not found in {}", out_dir.to_string_lossy(), directory);
             //exit(1);
         }
 
@@ -199,7 +199,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                             let json_content = match fs::read_to_string(&entry_path) {
                                 Ok(content) => content,
                                 Err(err) => {
-                                    eprintln!("Error reading JSON file '{}': {}", entry_path.display(), err);
+                                    log::error!("Error reading JSON file '{}': {}", entry_path.display(), err);
                                     continue;
                                 }
                             };
@@ -207,7 +207,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                             let metadata: Metadata = match serde_json::from_str(&json_content) {
                                 Ok(metadata) => metadata,
                                 Err(err) => {
-                                    eprintln!("Error parsing JSON file '{}': {}", entry_path.display(), err);
+                                    log::error!("Error parsing JSON file '{}': {}", entry_path.display(), err);
                                     continue;
                                 }
                             };
@@ -251,7 +251,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                     let json_content = match fs::read_to_string(&entry_path) {
                         Ok(content) => content,
                         Err(err) => {
-                            eprintln!("Error reading JSON file '{}': {}", entry_path.display(), err);
+                            log::error!("Error reading JSON file '{}': {}", entry_path.display(), err);
                             continue;
                         }
                     };
@@ -259,7 +259,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                     let metadata: Metadata = match serde_json::from_str(&json_content) {
                         Ok(metadata) => metadata,
                         Err(parseerr) => {
-                            eprintln!("Error parsing JSON file '{}': {}", entry_path.display(), parseerr);
+                            log::error!("Error parsing JSON file '{}': {}", entry_path.display(), parseerr);
                             continue;
                         }
                     };
@@ -277,7 +277,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                             }
                         }
                     } else {
-                        eprintln!("Error retrieving contract from HashMap");
+                        log::error!("Error retrieving contract from HashMap");
                     }
                 }
             }

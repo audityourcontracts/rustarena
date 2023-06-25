@@ -11,7 +11,7 @@ use crate::contract::{Contract, ContractKind};
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(rename = "_format")]
@@ -21,7 +21,7 @@ pub struct Metadata {
     pub abi: Vec<Abi>,
     pub bytecode: String,
     pub deployed_bytecode: String,
-    pub link_references: serde_json::Value,
+    pub link_references: LinkReferences,
     pub deployed_link_references: DeployedLinkReferences,
 }
 
@@ -57,9 +57,17 @@ pub struct Output {
     pub type_field: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LinkReferences {
+    #[serde(flatten)]
+    pub contracts: HashMap<String, HashMap<String, Vec<Reference>>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Reference {
+    pub length: u32,
+    pub start: u32,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -108,7 +116,7 @@ impl Build for HardhatBuilder {
             .output();
     
         if let Err(err) = install_result {
-            eprintln!("Error executing '{}' with '{}': {}", install_cmd, install_arg, err);
+            log::error!("Error executing '{}' with '{}': {}", install_cmd, install_arg, err);
             exit(1);
         }
     
@@ -120,20 +128,20 @@ impl Build for HardhatBuilder {
             .output();
     
         if let Err(err) = build_result {
-            eprintln!("Error executing '{}' with '{}': {}", compile_cmd, compile_arg, err);
+            log::error!("Error executing '{}' with '{}': {}", compile_cmd, compile_arg, err);
             exit(1);
         }
 
         let cache_dir = Path::new(&directory).join("cache");
         if !cache_dir.exists() || !cache_dir.is_dir() {
-            eprintln!("Error: 'cache' directory not found in {}", directory);
+            log::error!("Error: 'cache' directory not found in {}", directory);
             //exit(1);
         }
         
         let artifacts_dir = Path::new(&directory).join("artifacts");
         log::info!("Checking for the artifacts directory {}", artifacts_dir.to_string_lossy());
         if !artifacts_dir.exists() {
-            eprintln!("Error: 'artifacts' directory {} not found in {}", artifacts_dir.to_string_lossy(), directory);
+            log::error!("Error: 'artifacts' directory {} not found in {}", artifacts_dir.to_string_lossy(), directory);
             //exit(1);
         }
 
@@ -166,7 +174,7 @@ pub fn process_artifacts_directory(repo_directory: &str) -> (String, Vec<Contrac
                                 let json_content = match fs::read_to_string(&entry_path) {
                                     Ok(content) => content,
                                     Err(err) => {
-                                        eprintln!("Error reading JSON file '{}': {}", entry_path.display(), err);
+                                        log::error!("Error reading JSON file '{}': {}", entry_path.display(), err);
                                         continue;
                                     }
                                 };
@@ -174,7 +182,7 @@ pub fn process_artifacts_directory(repo_directory: &str) -> (String, Vec<Contrac
                                 let metadata: Metadata = match serde_json::from_str(&json_content) {
                                     Ok(metadata) => metadata,
                                     Err(err) => {
-                                        eprintln!("Error parsing JSON file '{}': {}", entry_path.display(), err);
+                                        log::error!("Error parsing JSON file '{}': {}", entry_path.display(), err);
                                         continue;
                                     }
                                 };
@@ -220,7 +228,7 @@ pub fn process_artifacts_directory(repo_directory: &str) -> (String, Vec<Contrac
                         let json_content = match fs::read_to_string(&entry_path) {
                             Ok(content) => content,
                             Err(err) => {
-                                eprintln!("Error reading JSON file '{}': {}", entry_path.display(), err);
+                                log::error!("Error reading JSON file '{}': {}", entry_path.display(), err);
                                 continue;
                             }
                         };
@@ -228,28 +236,26 @@ pub fn process_artifacts_directory(repo_directory: &str) -> (String, Vec<Contrac
                         let metadata: Metadata = match serde_json::from_str(&json_content) {
                             Ok(metadata) => metadata,
                             Err(parseerr) => {
-                                eprintln!("Error parsing JSON file '{}': {}", entry_path.display(), parseerr);
+                                log::error!("Error parsing JSON file '{}': {}", entry_path.display(), parseerr);
                                 continue;
                             }
                         };
-                        println!("Link References: {:?}", metadata.link_references);
-                        /*
-                        if let Some(contract) = contract_map.get_mut(contract_name) {
-                            for node in metadata.ast.nodes {
-                                if node.node_type == "ImportDirective" {
-                                    for symbol_alias in node.symbol_aliases {
-                                        let foreign_name = symbol_alias.foreign.name.clone();
 
-                                        if let Some(imported_contract) = contract_map_clone.get(&foreign_name) {
-                                            contract.imports.get_or_insert_with(Vec::new).push(imported_contract.clone());
-                                        }
+                        // LinkReferences contain the imports for a contract. If they aren't empty lets add them to the contract_map
+                        if let Some(contract) = contract_map.get_mut(contract_name) {
+                            for (_contract_path, inner_map) in &metadata.link_references.contracts {
+                                for (contract_only, _references) in inner_map {
+                                    // _contract_path is the path of the contract and contract_name.sol
+                                    // contract_only is just the name of the contract, no path and no .sol
+                                    let foreign_name = contract_only;
+                                    if let Some(imported_contract) = contract_map_clone.get(foreign_name) {
+                                        contract.imports.get_or_insert_with(Vec::new).push(imported_contract.clone());
                                     }
                                 }
                             }
                         } else {
-                            eprintln!("Error retrieving contract from HashMap");
+                            log::error!("Error retrieving contract from HashMap");
                         }
-                        */
                     }
                 }
             }

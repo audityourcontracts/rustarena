@@ -40,25 +40,25 @@ pub struct Contests {
     #[serde(rename = "judging_repo_name")]
     pub judging_repo_name: String,
     #[serde(rename = "lead_judge_fixed_pay")]
-    pub lead_judge_fixed_pay: i64,
+    pub lead_judge_fixed_pay: Option<i64>,
     #[serde(rename = "lead_judge_handle")]
     pub lead_judge_handle: Option<String>,
     #[serde(rename = "lead_senior_auditor_fixed_pay")]
-    pub lead_senior_auditor_fixed_pay: i64,
+    pub lead_senior_auditor_fixed_pay: Option<i64>,
     #[serde(rename = "lead_senior_auditor_handle")]
     pub lead_senior_auditor_handle: Option<String>,
     #[serde(rename = "logo_url")]
     pub logo_url: String,
     pub private: bool,
     #[serde(rename = "prize_pool")]
-    pub prize_pool: i64,
-    pub rewards: i64,
+    pub prize_pool: Option<i64>,
+    pub rewards: Option<i64>,
     #[serde(rename = "score_sequence")]
     pub score_sequence: Option<i64>,
     #[serde(rename = "short_description")]
     pub short_description: String,
     #[serde(rename = "starts_at")]
-    pub starts_at: i64,
+    pub starts_at: Option<i64>,
     pub status: String,
     #[serde(rename = "template_repo_name")]
     pub template_repo_name: String,
@@ -110,12 +110,12 @@ impl WebsiteParser for SherlockParser {
                             }
                         }
                     } else {
-                        eprintln!("Error parsing JSON for contest ID {}", contest.id);
+                        log::error!("Error parsing JSON for contest ID {}", contest.id);
                     }
                 }
             }
         } else {
-            eprintln!("Error parsing JSON");
+            log::error!("Error parsing JSON");
         }
         Ok(repos)
     }
