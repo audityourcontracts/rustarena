@@ -1,6 +1,7 @@
 use crate::parsers::parse::{WebsiteParser};
-use crate::parsers::code4rena::{Code4renaParser};
-use crate::parsers::sherlock::{SherlockParser};
+use crate::parsers::code4rena::Code4renaParser;
+use crate::parsers::sherlock::SherlockParser;
+use crate::parsers::immunefi::ImmunefiParser;
 use crate::github_api;
 use crate::contract::{process_repository, ContractKind};
 use clap::Parser;
@@ -28,6 +29,7 @@ impl Cli {
         let parsers: Vec<Box<dyn WebsiteParser>> = vec![
             Box::new(Code4renaParser::new()),
             Box::new(SherlockParser::new()),
+            Box::new(ImmunefiParser::new()),
         ];
 
         for parser in parsers {
