@@ -3,9 +3,10 @@ use serde_json;
 use markdown;
 use scraper::{Html, Selector};
 use crate::github_api;
-
-
+use serde_derive::Deserialize;
+use serde_derive::Serialize;
 use crate::parsers::parse::{WebsiteParser, Repo};
+
 pub struct SherlockParser{
     pub url: String,
 }
@@ -18,8 +19,7 @@ impl SherlockParser{
     }
 }
 
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
+
 
 pub type Root = Vec<Contests>;
 

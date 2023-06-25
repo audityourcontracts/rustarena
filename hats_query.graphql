@@ -1,0 +1,8 @@
+query MyQuery {
+  masters {
+    vaults {
+      id
+      descriptionHash
+    }
+  }
+}
