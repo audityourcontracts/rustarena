@@ -102,32 +102,40 @@ impl WebsiteParser for HatsParser {
                     for vault in vaults {
                         log::debug!("Found vault {:?} with description hash {:?}", vault.id, vault.description_hash);
                         let ipfs_url = format!("{}/{}", base_url, vault.description_hash);
-                        let response = reqwest::blocking::get(&ipfs_url)?;
-                        if response.status().is_success() {
-                            let ipfs_response: serde_json::Value = response.json()?;
-                            let hats: Hats = serde_json::from_value(ipfs_response)?;
-                            for severity in hats.severities {
-                                for contract_link in &severity.contracts_covered {
-                                    for (_contract, link) in contract_link.iter() {
-                                        if link.contains("github.com") {
-                                            // Parse for the github repo format
-                                            let parsed_url = Url::parse(&link);
-                                            if let Ok(url) = parsed_url {
-                                                let path_segments = url.path_segments().unwrap();
-                                                let formatted_path = path_segments.take(2).collect::<Vec<_>>().join("/");
-                                                let formatted_url = format!("{}://{}/{}", url.scheme(), url.host_str().unwrap(), formatted_path);
-                                                if unique_github_links.insert(formatted_url.to_owned()) {
-                                                    // Only logging on new github urls
-                                                    log::info!("Formatted github link: {}", formatted_url);
+                        let response_result = reqwest::blocking::get(&ipfs_url);
+
+                        match response_result {
+                            Ok(response) => {
+                                if response.status().is_success() {
+                                    let ipfs_response: serde_json::Value = response.json()?;
+                                    let hats: Hats = serde_json::from_value(ipfs_response)?;
+                                    for severity in hats.severities {
+                                        for contract_link in &severity.contracts_covered {
+                                            for (_contract, link) in contract_link.iter() {
+                                                if link.contains("github.com") {
+                                                    // Parse for the github repo format
+                                                    let parsed_url = Url::parse(&link);
+                                                    if let Ok(url) = parsed_url {
+                                                        let path_segments = url.path_segments().unwrap();
+                                                        let formatted_path = path_segments.take(2).collect::<Vec<_>>().join("/");
+                                                        let formatted_url = format!("{}://{}/{}", url.scheme(), url.host_str().unwrap(), formatted_path);
+                                                        if unique_github_links.insert(formatted_url.to_owned()) {
+                                                            // Only logging on new github urls
+                                                            log::info!("Formatted github link: {}", formatted_url);
+                                                        }
+                                                    } else {
+                                                        log::error!("Couldn't parse the url {}", link)
+                                                    }
                                                 }
-                                            } else {
-                                                log::error!("Couldn't parse the url {}", link)
                                             }
                                         }
                                     }
-                                }
+                                } 
                             }
-                        } 
+                            Err(err) => {
+                                log::error!("Failed to send IPFS request: {}", err);
+                            }
+                        }
                     }
                 }
             }
@@ -142,7 +150,6 @@ impl WebsiteParser for HatsParser {
             let name = format!("repos/{}", get_last_path_part(&url.as_str()).unwrap());
             let commit = None;
             let repo = Repo { url, name, commit };
-            println!("Repo: {:?}", repo);
             repos.push(repo);
         }
         Ok(repos)
