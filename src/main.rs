@@ -6,6 +6,7 @@ mod parsers {
     pub mod sherlock;
     pub mod code4rena;
     pub mod immunefi;
+    pub mod hats;
 }
 mod builders {
     pub mod build;
