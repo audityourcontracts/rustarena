@@ -48,8 +48,8 @@ pub struct Severity {
 
 #[derive(GraphQLQuery)]
 #[graphql(
-    schema_path = "hats_schema.gql",
-    query_path = "hats_query.graphql",
+    schema_path = "src/parsers/graphql/hats_schema.gql",
+    query_path = "src/parsers/graphql/hats_query.graphql",
     response_derives = "Debug"
 )]
 pub struct MyQuery;
