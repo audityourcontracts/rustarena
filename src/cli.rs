@@ -67,18 +67,18 @@ impl Cli {
                                         }
                                     }
                                     Err(err) => {
-                                        eprintln!("Error processing repository: {}", err);
+                                        log::error!("Error processing repository: {}", err);
                                     }
                                 }
                             }
                             Err(err) => {
-                                eprintln!("Error cloning repo: {}", err);
+                                log::error!("Error cloning repo: {}", err);
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    eprintln!("Error parsing website: {}", err);
+                    log::error!("Error parsing website: {}", err);
                 }
             }
         }
