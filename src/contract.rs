@@ -24,6 +24,7 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
             let subdir = entry.path();
             let hardhat_config_ts = subdir.join("hardhat.config.ts");
             let hardhat_config_js = subdir.join("hardhat.config.js");
+            let foundry_file = subdir.join("foundry.toml");
 
             if hardhat_config_ts.exists() || hardhat_config_js.exists() {
                 let mut builder = HardhatBuilder::new(HardhatMode::Npm);
@@ -48,12 +49,13 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
                 } else {
                     return Ok((directory, contracts));
                 }
-            } else {
-                let foundry_file = subdir.join("foundry.toml");
+            } else if foundry_file.exists(){
                 if foundry_file.exists() {
                     let builder = ForgeBuilder;
                     return builder.build(subdir.to_str().unwrap())
                 }
+            } else {
+                log::error!("No buildable file found.")
             }
         }
     }
