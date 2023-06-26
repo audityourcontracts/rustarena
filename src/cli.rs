@@ -8,12 +8,16 @@ use crate::contract::{process_repository, ContractKind};
 use clap::Parser;
 use log;
 use crate::parsers::parse::Repo;
+use url::Url;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     #[arg(short, long)]
     truncate: bool,
+
+    #[arg(short, long)]
+    github: Option<String>,
 }
 
 pub struct Cli {
@@ -35,19 +39,33 @@ impl Cli {
             Box::new(HatsParser::new()),
         ];
 
-        for parser in parsers {
-            log::info!("Parsing website {}", parser.url());
-            // Parse the dom, clone the repo, process the repo, print the results
-            match parser.parse_dom() {
-                Ok(repos) => {
-                    for repo in repos {
-                        if let Err(err) = process_results(&repo, args.truncate) {
-                            log::error!("Error processing repository: {}", err);
+        if let Some(github_link) = &args.github {
+            let repo_name = format!("repos/{}", get_last_path_part(&github_link.as_str()).unwrap());
+            // Process a single GitHub repository
+            let repo = Repo {
+                name: repo_name,
+                url: github_link.clone(),
+                commit: None,
+            };
+
+            if let Err(err) = process_results(&repo, args.truncate) {
+                log::error!("Error processing repository: {}", err);
+            }
+        } else {
+            for parser in parsers {
+                log::info!("Parsing website {}", parser.url());
+                // Parse the dom, clone the repo, process the repo, print the results
+                match parser.parse_dom() {
+                    Ok(repos) => {
+                        for repo in repos {
+                            if let Err(err) = process_results(&repo, args.truncate) {
+                                log::error!("Error processing repository: {}", err);
+                            }
                         }
                     }
-                }
-                Err(err) => {
-                    log::error!("Error parsing website: {}", err);
+                    Err(err) => {
+                        log::error!("Error parsing website: {}", err);
+                    }
                 }
             }
         }
@@ -112,5 +130,13 @@ fn truncate_bytecode(bytecode: &str) -> String {
         format!("{}...", &bytecode[..MAX_BYTECODE_LENGTH])
     } else {
         bytecode.to_owned()
+    }
+}
+
+fn get_last_path_part(url: &str) -> Option<String> {
+    if let Ok(parsed_url) = Url::parse(url) {
+        parsed_url.path_segments()?.last().map(String::from)
+    } else {
+        None
     }
 }
