@@ -12,6 +12,7 @@ mod builders {
     pub mod build;
     pub mod forge;
     pub mod hardhat;
+    pub mod truffle;
 }
 
 use cli::Cli;

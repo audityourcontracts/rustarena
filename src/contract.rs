@@ -3,6 +3,7 @@ use walkdir::WalkDir;
 use crate::builders::build::Build;
 use crate::builders::forge::ForgeBuilder;
 use crate::builders::hardhat::{HardhatBuilder, HardhatMode};
+use crate::builders::truffle::TruffleBuilder;
 
 // Contract struct. ContractKind for Contract vs Interfaces. Interfaces have the bytecode 0x
 #[derive(Clone, Debug)]
@@ -25,6 +26,7 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
             let hardhat_config_ts = subdir.join("hardhat.config.ts");
             let hardhat_config_js = subdir.join("hardhat.config.js");
             let foundry_file = subdir.join("foundry.toml");
+            let truffle_file = subdir.join("truffle-config.js");
 
             if hardhat_config_ts.exists() || hardhat_config_js.exists() {
                 let mut builder = HardhatBuilder::new(HardhatMode::Npm);
@@ -50,10 +52,11 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
                     return Ok((directory, contracts));
                 }
             } else if foundry_file.exists(){
-                if foundry_file.exists() {
-                    let builder = ForgeBuilder;
-                    return builder.build(subdir.to_str().unwrap())
-                }
+                let builder = ForgeBuilder;
+                return builder.build(subdir.to_str().unwrap())
+            } else if truffle_file.exists(){
+                let builder = TruffleBuilder;
+                return builder.build(subdir.to_str().unwrap())
             } else {
                 log::error!("No buildable file found.")
             }
