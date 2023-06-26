@@ -95,29 +95,34 @@ impl Build for TruffleBuilder {
         } else {
             log::error!("Failed to get current directory");
         }
-    
+
+        let mut artifact_dir = "";
+
         let src_dir = Path::new(&directory).join("src");
         if !src_dir.exists() || !src_dir.is_dir() {
             log::error!("Error: 'src' directory not found in {}", directory);
             //exit(1);
+        } else {
+            artifact_dir = "src";
         }
-        /* 
-        // Check if "out" directory exists
-        let out_dir = Path::new(&directory).join("out");
-        log::info!("Checking for the out directory {}", out_dir.to_string_lossy());
-        if !out_dir.exists() {
-            log::error!("Error: 'out' directory {} not found in {}", out_dir.to_string_lossy(), directory);
-            //exit(1);
-        }
-        */
 
-        let result = process_truffle_directory(directory);
+        // Check if "out" directory exists
+        let build_dir = Path::new(&directory).join("build");
+        log::info!("Checking for the build directory {}", build_dir.to_string_lossy());
+        if !build_dir.exists() {
+            log::error!("Error: 'out' directory {} not found in {}", build_dir.to_string_lossy(), directory);
+            //exit(1);
+        } else {
+            artifact_dir = "build";
+        }
+
+        let result = process_truffle_directory(directory, artifact_dir);
         Ok(result)
     }
 }
 
-pub fn process_truffle_directory(repo_directory: &str) -> (String, Vec<Contract>) {
-    let out_dir = Path::new(&repo_directory).join("src");
+pub fn process_truffle_directory(repo_directory: &str, artifact_dir: &str) -> (String, Vec<Contract>) {
+    let out_dir = Path::new(&repo_directory).join(artifact_dir);
     log::info!("Looking for built contracts in {}", &out_dir.to_string_lossy());
 
     // Contract map stores a mapping from contract name to Contract.
