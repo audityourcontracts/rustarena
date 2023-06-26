@@ -46,13 +46,22 @@ pub struct ImmutableReferences {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Ast {
-    pub absolute_path: String,
+    pub absolute_path: Option<String>,
     //pub exported_symbols: ExportedSymbols,
     pub id: i64,
     pub license: Option<String>,
     pub node_type: String,
-    //pub nodes: Vec<Node>,
+    pub nodes: Vec<Node>,
     pub src: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Node {
+    pub absolute_path: Option<String>,
+    pub file: Option<String>,
+    pub id: i64,
+    pub node_type: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -184,7 +193,6 @@ pub fn process_truffle_directory(repo_directory: &str, artifact_dir: &str) -> (S
     // We append the imports to the contract's imports field.
 
     let contract_map_clone = contract_map.clone();
-    /*
     let walker = WalkDir::new(&out_dir).into_iter();
 
     for entry in walker.flatten() {
@@ -212,11 +220,14 @@ pub fn process_truffle_directory(repo_directory: &str, artifact_dir: &str) -> (S
                     if let Some(contract) = contract_map.get_mut(contract_name) {
                         for node in metadata.ast.nodes {
                             if node.node_type == "ImportDirective" {
-                                for symbol_alias in node.symbol_aliases {
-                                    let foreign_name = symbol_alias.foreign.name.clone();
-
-                                    if let Some(imported_contract) = contract_map_clone.get(&foreign_name) {
-                                        contract.imports.get_or_insert_with(Vec::new).push(imported_contract.clone());
+                                if let Some(file) = node.file {
+                                    let segments: Vec<&str> = file.split('/').collect();
+                                    if let Some(last_segment) = segments.last() {
+                                        let contract_name = last_segment.trim_end_matches(".sol");
+                                        // Add import to contract.
+                                        if let Some(imported_contract) = contract_map_clone.get(contract_name) {
+                                            contract.imports.get_or_insert_with(Vec::new).push(imported_contract.clone());
+                                        }
                                     }
                                 }
                             }
@@ -228,7 +239,6 @@ pub fn process_truffle_directory(repo_directory: &str, artifact_dir: &str) -> (S
             }
         }
     }
-    */
     // contract_map should have all contracts with all imports
     let contracts: Vec<Contract> = contract_map.values().cloned().collect();
     (repo_directory.to_owned(), contracts)
