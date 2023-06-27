@@ -121,7 +121,7 @@ impl WebsiteParser for HatsParser {
                                                         let formatted_url = format!("{}://{}/{}", url.scheme(), url.host_str().unwrap(), formatted_path);
                                                         if unique_github_links.insert(formatted_url.to_owned()) {
                                                             // Only logging on new github urls
-                                                            log::info!("Formatted github link: {}", formatted_url);
+                                                            log::debug!("Formatted github link: {}", formatted_url);
                                                         }
                                                     } else {
                                                         log::error!("Couldn't parse the url {}", link)

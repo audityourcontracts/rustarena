@@ -18,8 +18,9 @@ mod builders {
 use cli::Cli;
 use env_logger;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
     let cli = Cli::new();
-    cli.run();
+    cli.run().await;
 }
