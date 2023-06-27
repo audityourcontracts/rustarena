@@ -3,6 +3,7 @@ use log;
 use scraper::{Html, Selector};
 use url::Url;
 use std::collections::HashSet;
+use crate::github_api;
 
 use crate::parsers::parse::{WebsiteParser, Repo};
 
@@ -100,7 +101,7 @@ impl WebsiteParser for ImmunefiParser {
 
         for github_link in unique_github_links {
             let url = github_link.to_string();
-            let name = format!("repos/{}", get_last_path_part(&url.as_str()).unwrap());
+            let name = format!("repos/{}", github_api::get_last_path_part(&url.as_str()).unwrap());
             let commit = None;
             let repo = Repo { url, name, commit };
             repos.push(repo);
@@ -111,13 +112,5 @@ impl WebsiteParser for ImmunefiParser {
     
     fn url(&self) -> &str {
         &self.url
-    }
-}
-
-fn get_last_path_part(url: &str) -> Option<String> {
-    if let Ok(parsed_url) = Url::parse(url) {
-        parsed_url.path_segments()?.last().map(String::from)
-    } else {
-        None
     }
 }

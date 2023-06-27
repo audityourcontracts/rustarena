@@ -20,6 +20,11 @@ use env_logger;
 
 #[tokio::main]
 async fn main() {
+    // TODO: Come back and filter this ;)
+    /*Builder::new()
+    .filter(Some("headless_chrome"), LevelFilter::Debug)
+    .init();
+    */
     env_logger::init();
     let cli = Cli::new();
     cli.run().await;

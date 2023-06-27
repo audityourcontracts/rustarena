@@ -1,6 +1,7 @@
+use clap::error;
 use log;
 use walkdir::WalkDir;
-use crate::builders::build::Build;
+use crate::builders::build::{Build, self};
 use crate::builders::forge::ForgeBuilder;
 use crate::builders::hardhat::{HardhatBuilder, HardhatMode};
 use crate::builders::truffle::TruffleBuilder;
@@ -20,6 +21,16 @@ pub enum ContractKind {
 }
 
 pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>), Box<dyn std::error::Error>> {
+    let mut error_directory = String::from("repos/error");
+    let repo_path = std::path::Path::new(repo_directory);
+    if let Ok(repo_name) = repo_path.strip_prefix("repos") {
+        if let Some(name) = repo_name.to_str() {
+            error_directory.push('/');
+            error_directory.push_str(name);
+        } 
+    }
+    log::debug!("Error directory set to {}", error_directory);
+
     for entry in WalkDir::new(repo_directory).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_dir() {
             let subdir = entry.path();
@@ -43,25 +54,51 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
                     let (directory, contracts) = builder.build(subdir.to_str().unwrap())?;
                     if contracts.is_empty() {
                         log::info!("No contracts found, trying FoundryBuilder");
-                        let foundry_builder = ForgeBuilder;
-                        return foundry_builder.build(subdir.to_str().unwrap());
+                        let builder = ForgeBuilder;
+                        let (directory, contracts) = builder.build(subdir.to_str().unwrap())?;
+                        if contracts.is_empty() {
+                            log::error!("Attempted building with Hardhat then Foundry but failed. Moving {} to {}", directory, error_directory);
+                            std::fs::create_dir_all(&error_directory)?;
+                            std::fs::rename(repo_directory, &error_directory)?;
+                            return Ok(("".to_string(), Vec::new())); 
+                        }
+                        return Ok((directory, contracts)) 
                     } else {
-                        return Ok((directory, contracts));
+                        return Ok((directory, contracts))
                     }
                 } else {
-                    return Ok((directory, contracts));
+                    return Ok((directory, contracts))
                 }
             } else if foundry_file.exists(){
                 let builder = ForgeBuilder;
-                return builder.build(subdir.to_str().unwrap())
+                let build_results = builder.build(subdir.to_str().unwrap())?;
+                let (directory, contracts) = &build_results;
+                if contracts.is_empty() {
+                    log::error!("Attempted building with Foundry but failed. Moving repo {} to {}", directory, error_directory);
+                    std::fs::create_dir_all(&error_directory)?;
+                    std::fs::rename(repo_directory, &error_directory)?;
+                    return Ok(("".to_string(), Vec::new()));
+                }
+                return Ok(build_results)
             } else if truffle_file.exists(){
                 let builder = TruffleBuilder;
-                return builder.build(subdir.to_str().unwrap())
+                let (directory, contracts) = builder.build(subdir.to_str().unwrap())?;
+                if contracts.is_empty() {
+                    log::error!("Attempted building with Truffle but failed. Moving {} to {}", directory, error_directory);
+                    std::fs::create_dir_all(&error_directory)?;
+                    std::fs::rename(repo_directory, &error_directory)?;
+                    return Ok(("".to_string(), Vec::new()));
+                }
+                return Ok((directory, contracts))
             } else {
-                log::error!("No buildable file found.")
+                log::error!("No buildable file found. Moving repo to {}", error_directory);
+                std::fs::create_dir_all(&error_directory)?;
+                std::fs::rename(repo_directory, &error_directory)?;
+                return Ok(("".to_string(), Vec::new()));
             }
         }
     }
     // If none of the builders have returned we don't have anything.
+    log::error!("No contracts returned from builders and we didn't exit earlier.");
     Ok(("".to_string(), Vec::new()))
 }

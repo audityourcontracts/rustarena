@@ -14,7 +14,9 @@ pub fn clone_repository(repository: &Repo) -> Result<(), Box<dyn std::error::Err
     // Clone the repository
     if repository.commit.is_none() {
         log::info!("Cloning the repo {}", &repository.url);
-        Repository::clone(&repository.url, &repository.name).unwrap();
+        Repository::clone(&repository.url, &repository.name).map_err(|err| {
+            err
+        })?;
     } else {
         if let Some(commit) = &repository.commit {
             log::info!("Cloning the repo {} at commit {}", &repository.url, &commit);
@@ -44,4 +46,12 @@ pub fn parse_github_url(url: &str) -> Option<(String, String, String)> {
     let sha_hash = path_segments.last()?.to_string();
 
     Some((repository_url, repository, sha_hash))
+}
+
+pub fn get_last_path_part(url: &str) -> Option<String> {
+    if let Ok(parsed_url) = Url::parse(url) {
+        parsed_url.path_segments()?.last().map(String::from)
+    } else {
+        None
+    }
 }

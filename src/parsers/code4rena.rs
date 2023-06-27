@@ -1,9 +1,9 @@
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use log;
 use scraper::{Html, Selector};
-use url::Url;
 
 use crate::parsers::parse::{WebsiteParser, Repo};
+use crate::github_api;
 
 pub struct Code4renaParser {
     pub url: String,
@@ -50,7 +50,7 @@ impl WebsiteParser for Code4renaParser {
                 if link.contains("github.com") && link != "https://github.com/code-423n4/" && link != "https://github.com/code-423n4/media-kit" {
                     log::debug!("Found github link {}", link);
                     let url = link.to_string();
-                    let name = format!("repos/{}", get_last_path_part(&url.as_str()).unwrap());
+                    let name = format!("repos/{}", github_api::get_last_path_part(&url.as_str()).unwrap());
                     let commit = None;
                     let repo = Repo { url, name, commit };
                     repos.push(repo);
@@ -62,13 +62,5 @@ impl WebsiteParser for Code4renaParser {
     
     fn url(&self) -> &str {
         &self.url
-    }
-}
-
-fn get_last_path_part(url: &str) -> Option<String> {
-    if let Ok(parsed_url) = Url::parse(url) {
-        parsed_url.path_segments()?.last().map(String::from)
-    } else {
-        None
     }
 }
