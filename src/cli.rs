@@ -9,6 +9,8 @@ use clap::Parser;
 use log;
 use crate::parsers::parse::Repo;
 use url::Url;
+use tokio::task::{spawn, spawn_blocking};
+use std::sync::{Arc};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -29,14 +31,14 @@ impl Cli {
         }
     }
 
-    pub fn run(&self) {
+    pub async fn run(&self) {
         let args = Args::parse();
 
-        let parsers: Vec<Box<dyn WebsiteParser>> = vec![
-            Box::new(Code4renaParser::new()),
-            Box::new(SherlockParser::new()),
-            Box::new(ImmunefiParser::new()),
-            Box::new(HatsParser::new()),
+        let parsers: Vec<Arc<dyn WebsiteParser + Sync + Send>> = vec![
+            Arc::new(Code4renaParser::new()),
+            Arc::new(SherlockParser::new()),
+            Arc::new(ImmunefiParser::new()),
+            Arc::new(HatsParser::new()),
         ];
 
         if let Some(github_link) = &args.github {
@@ -47,28 +49,36 @@ impl Cli {
                 url: github_link.clone(),
                 commit: None,
             };
-
-            if let Err(err) = process_results(&repo, args.truncate) {
-                log::error!("Error processing repository: {}", err);
-            }
+            // Not sure this is right, how do I know the task returned.
+            spawn_blocking(move || {
+                if let Err(err) = process_results(&repo, args.truncate) {
+                    log::error!("Error processing repository: {}", err);
+                }
+            });
         } else {
-            for parser in parsers {
-                log::info!("Parsing website {}", parser.url());
-                // Parse the dom, clone the repo, process the repo, print the results
-                match parser.parse_dom() {
-                    Ok(repos) => {
-                        for repo in repos {
-                            if let Err(err) = process_results(&repo, args.truncate) {
-                                log::error!("Error processing repository: {}", err);
+            let tasks = parsers.into_iter().map(|parser| {
+                spawn_blocking(move || {
+                    log::info!("Parsing website {}", parser.url());
+                    // Parse the dom, clone the repo, process the repo, print the results
+                    match parser.parse_dom() {
+                        Ok(repos) => {
+                            for repo in repos {
+                                spawn(async move {
+                                    if let Err(err) = process_results(&repo, args.truncate) {
+                                        log::error!("Error processing repository: {}", err);
+                                    }
+                                });
                             }
                         }
+                        Err(err) => {
+                            log::error!("Error parsing website: {}", err);
+                        }
                     }
-                    Err(err) => {
-                        log::error!("Error parsing website: {}", err);
-                    }
-                }
-            }
+                })
+            });
+            futures::future::join_all(tasks).await; 
         }
+        
     }
 }
 
