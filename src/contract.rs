@@ -1,7 +1,6 @@
-use clap::error;
 use log;
 use walkdir::WalkDir;
-use crate::builders::build::{Build, self};
+use crate::builders::build::Build;
 use crate::builders::forge::ForgeBuilder;
 use crate::builders::hardhat::{HardhatBuilder, HardhatMode};
 use crate::builders::truffle::TruffleBuilder;
