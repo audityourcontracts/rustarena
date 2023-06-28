@@ -108,7 +108,7 @@ pub struct Node {
 #[serde(rename_all = "camelCase")]
 pub struct SymbolAliases {
     pub foreign: Foreign,
-    pub name_location: String,
+    pub name_location: Option<String>,
     pub local: Option<String>,
 }
 
