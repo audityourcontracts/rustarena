@@ -62,13 +62,18 @@ impl Cli {
                     // Parse the dom, clone the repo, process the repo, print the results
                     match parser.parse_dom() {
                         Ok(repos) => {
-                            for repo in repos {
-                                spawn(async move {
-                                    if let Err(err) = process_results(&repo, args.truncate) {
-                                        log::error!("Error processing repository: {}", err);
-                                    }
-                                });
-                            }
+                            log::debug!("Received {} repos", repos.len());
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            rt.block_on(async {
+                                let inner_tasks: Vec<_> = repos.into_iter().map(|repo| {
+                                    tokio::spawn(async move {
+                                        if let Err(err) = process_results(&repo, args.truncate) {
+                                            log::error!("Error processing repository: {}", err);
+                                        }
+                                    })
+                                }).collect();
+                                futures::future::join_all(inner_tasks).await;
+                            });
                         }
                         Err(err) => {
                             log::error!("Error parsing website: {}", err);
