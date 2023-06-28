@@ -105,7 +105,7 @@ impl HardhatBuilder {
 impl Build for HardhatBuilder {
     fn build(&self, directory: &str) -> Result<(String, Vec<Contract>), Box<dyn std::error::Error>> {
         let (install_cmd, install_arg, compile_cmd, compile_arg) = match self.mode {
-            HardhatMode::Yarn => ("yarn", "", "yarn", "compile"),
+            HardhatMode::Yarn => ("yarn", "install", "yarn", "compile"),
             HardhatMode::Npm => ("npm", "install", "npx", "hardhat compile"),
         };
 
@@ -114,7 +114,7 @@ impl Build for HardhatBuilder {
             .arg(install_arg)
             .current_dir(directory)
             .output();
-    
+
         if let Err(err) = install_result {
             log::error!("Error executing '{}' with '{}': {}", install_cmd, install_arg, err);
             exit(1);

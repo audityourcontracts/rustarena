@@ -21,6 +21,7 @@ pub enum ContractKind {
 }
 
 pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>), Box<dyn std::error::Error>> {
+    // If we know how to build the repo but it doesn't work move to error
     let mut error_directory = String::from("repos/error");
     let repo_path = std::path::Path::new(repo_directory);
     if let Ok(repo_name) = repo_path.strip_prefix("repos") {
@@ -30,6 +31,17 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
         } 
     }
     log::debug!("Error directory set to {}", error_directory);
+
+    // We don't know how to build this kind of repo 
+        let mut unsupported_directory = String::from("repos/unsupported");
+        let repo_path = std::path::Path::new(repo_directory);
+        if let Ok(repo_name) = repo_path.strip_prefix("repos") {
+            if let Some(name) = repo_name.to_str() {
+                unsupported_directory.push('/');
+                unsupported_directory.push_str(name);
+            } 
+        }
+    log::debug!("Unsupported directory set to {}", unsupported_directory);
 
     for entry in WalkDir::new(repo_directory).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_dir() {
@@ -91,9 +103,9 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
                 }
                 return Ok((directory, contracts))
             } else {
-                log::error!("No buildable file found. Moving repo to {}", error_directory);
-                std::fs::create_dir_all(&error_directory)?;
-                std::fs::rename(repo_directory, &error_directory)?;
+                log::error!("No buildable file found. Moving repo to {}", unsupported_directory);
+                std::fs::create_dir_all(&unsupported_directory)?;
+                std::fs::rename(repo_directory, &unsupported_directory)?;
                 return Ok(("".to_string(), Vec::new()));
             }
         }
