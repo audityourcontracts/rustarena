@@ -57,6 +57,8 @@ impl Cli {
                     sherlock.parse_dom().await
                 }
             }));
+
+            /*
             
             tasks.push(spawn({
                 let code4rena = Arc::new(Code4renaParser::new());
@@ -78,6 +80,7 @@ impl Cli {
                     immunefi.parse_dom().await
                 }
             }));
+            */
             
             let results: Vec<Result<_, Box<dyn std::error::Error + std::marker::Send + Sync>>> = try_join_all(tasks)
                 .await.unwrap();
