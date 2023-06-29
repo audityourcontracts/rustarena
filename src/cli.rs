@@ -52,9 +52,9 @@ impl Cli {
             });
         } else {
             tasks.push(spawn({
-                let sherlock = Arc::new(SherlockParser::new());
+                let hats = Arc::new(HatsParser::new());
                 async move {
-                    sherlock.parse_dom().await
+                    hats.parse_dom().await
                 }
             }));
 
@@ -68,9 +68,9 @@ impl Cli {
             }));
 
             tasks.push(spawn({
-                let hats = Arc::new(HatsParser::new());
+                let sherlock = Arc::new(SherlockParser::new());
                 async move {
-                    hats.parse_dom().await
+                    sherlock.parse_dom().await
                 }
             }));
 

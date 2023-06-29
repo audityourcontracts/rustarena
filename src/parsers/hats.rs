@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 use url::Url;
 use std::error::Error;
 use std::time::Duration;
+use tokio::task;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,8 +106,17 @@ impl HatsParser {
                         for vault in vaults {
                             log::debug!("Found vault {:?} with description hash {:?}", vault.id, vault.description_hash);
                             let ipfs_url = format!("{}/{}", base_url, vault.description_hash);
-                            let response_result = reqwest::Client::new()
-                                                    .get(&ipfs_url).timeout(Duration::from_secs(3)).send().await;
+
+                            log::debug!("Spawning to retrieve {}", ipfs_url);
+                            let response_result = task::spawn(async move {
+                                reqwest::Client::new()
+                                    .get(&ipfs_url)
+                                    .timeout(Duration::from_secs(3))
+                                    .send()
+                                    .await
+                            })
+                            .await?;
+
                             match response_result {
                                 Ok(response) => {
                                     if response.status().is_success() {
