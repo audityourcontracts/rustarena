@@ -1,4 +1,3 @@
-use crate::parsers::parse::{WebsiteParser};
 use crate::parsers::code4rena::Code4renaParser;
 use crate::parsers::sherlock::SherlockParser;
 use crate::parsers::immunefi::ImmunefiParser;
@@ -9,8 +8,9 @@ use clap::Parser;
 use log;
 use crate::parsers::parse::Repo;
 use url::Url;
-use tokio::task::{spawn, spawn_blocking};
-use std::sync::{Arc};
+use tokio::task::spawn;
+use std::sync::Arc;
+use futures::future::try_join_all;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -34,12 +34,7 @@ impl Cli {
     pub async fn run(&self) {
         let args = Args::parse();
 
-        let parsers: Vec<Arc<dyn WebsiteParser + Sync + Send>> = vec![
-            Arc::new(Code4renaParser::new()),
-            Arc::new(SherlockParser::new()),
-            Arc::new(ImmunefiParser::new()),
-            Arc::new(HatsParser::new()),
-        ];
+        let mut tasks = Vec::new();
 
         if let Some(github_link) = &args.github {
             let repo_name = format!("repos/{}", get_last_path_part(&github_link.as_str()).unwrap());
@@ -50,38 +45,49 @@ impl Cli {
                 commit: None,
             };
             // Not sure this is right, how do I know the task returned.
-            spawn_blocking(move || {
+            spawn(async move {
                 if let Err(err) = process_results(&repo, args.truncate) {
                     log::error!("Error processing repository: {}", err);
                 }
             });
         } else {
-            let tasks = parsers.into_iter().map(|parser| {
-                spawn_blocking(move || {
-                    log::info!("Parsing website {}", parser.url());
-                    // Parse the dom, clone the repo, process the repo, print the results
-                    match parser.parse_dom() {
-                        Ok(repos) => {
-                            log::debug!("Received {} repos", repos.len());
-                            let rt = tokio::runtime::Runtime::new().unwrap();
-                            rt.block_on(async {
-                                let inner_tasks: Vec<_> = repos.into_iter().map(|repo| {
-                                    tokio::spawn(async move {
-                                        if let Err(err) = process_results(&repo, args.truncate) {
-                                            log::error!("Error processing repository: {}", err);
-                                        }
-                                    })
-                                }).collect();
-                                futures::future::join_all(inner_tasks).await;
-                            });
-                        }
-                        Err(err) => {
-                            log::error!("Error parsing website: {}", err);
-                        }
-                    }
-                })
-            });
-            futures::future::join_all(tasks).await; 
+            let sherlock = Arc::new(SherlockParser::new());
+            tasks.push(spawn({
+                let sherlock = Arc::clone(&sherlock);
+                async move {
+                    sherlock.parse_dom().await
+                }
+            }));
+
+            let code4rena = Arc::new(Code4renaParser::new());
+            tasks.push(spawn({
+                let code4rena = Arc::clone(&code4rena);
+                async move {
+                    code4rena.parse_dom().await
+                }
+            }));
+
+            let hats = Arc::new(HatsParser::new());
+            tasks.push(spawn({
+                let hats = Arc::clone(&hats);
+                async move {
+                    hats.parse_dom().await
+                }
+            }));
+
+            let immunefi = Arc::new(ImmunefiParser::new());
+            tasks.push(spawn({
+                let immunefi = Arc::clone(&immunefi);
+                async move {
+                    immunefi.parse_dom().await
+                }
+            }));
+            
+            let results: Vec<Result<_, Box<dyn std::error::Error + std::marker::Send + Sync>>> = try_join_all(tasks)
+                .await.unwrap();
+            println!("{:?}", results);
+            println!("{:?}", results.len());
+
         }
         
     }

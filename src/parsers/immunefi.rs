@@ -4,8 +4,7 @@ use scraper::{Html, Selector};
 use url::Url;
 use std::collections::HashSet;
 use crate::github_api;
-
-use crate::parsers::parse::{WebsiteParser, Repo};
+use crate::parsers::parse::Repo;
 
 pub struct ImmunefiParser {
     pub url: String,
@@ -19,8 +18,8 @@ impl ImmunefiParser {
     }
 }
 
-impl WebsiteParser for ImmunefiParser {
-    fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error>>  {
+impl ImmunefiParser {
+    pub async fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error + Send + Sync>> {
         let launch_options= LaunchOptionsBuilder::default()
             .headless(true)  // Enable browser window
             .build()

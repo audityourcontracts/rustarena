@@ -1,4 +1,4 @@
-use crate::parsers::parse::{WebsiteParser, Repo};
+use crate::parsers::parse::Repo;
 use crate::github_api;
 use serde_json::json;
 use serde_derive::Deserialize;
@@ -7,6 +7,8 @@ use graphql_client;
 use graphql_client::{GraphQLQuery, Response};
 use std::collections::{HashMap, HashSet};
 use url::Url;
+use std::error::Error;
+use std::time::Duration;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,8 +69,8 @@ impl HatsParser {
     }
 }
 
-impl WebsiteParser for HatsParser {
-    fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error>>  {
+impl HatsParser {
+    pub async fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn Error + Send + Sync>>  {
         let mut repos: Vec<Repo> = Vec::new();
 
         // Construct the GraphQL query
@@ -76,7 +78,7 @@ impl WebsiteParser for HatsParser {
         let query = MyQuery::build_query(variables);
 
         // Create a Reqwest client
-        let client = reqwest::blocking::Client::new();
+        let client = reqwest::Client::new();
 
         // Construct the GraphQL request body
         let body = json!({
@@ -92,9 +94,9 @@ impl WebsiteParser for HatsParser {
                 .post(url)
                 .header("Content-Type", "application/json")
                 .json(&body)
-                .send()?;
+                .send().await?;
 
-            let response_body: Response<my_query::ResponseData> = response.json()?;
+            let response_body: Response<my_query::ResponseData> = response.json().await?;
             let base_url = "https://ipfs.io/ipfs";
 
             if let Some(data) = response_body.data {
@@ -103,12 +105,12 @@ impl WebsiteParser for HatsParser {
                         for vault in vaults {
                             log::debug!("Found vault {:?} with description hash {:?}", vault.id, vault.description_hash);
                             let ipfs_url = format!("{}/{}", base_url, vault.description_hash);
-                            let response_result = reqwest::blocking::get(&ipfs_url);
-
+                            let response_result = reqwest::Client::new()
+                                                    .get(&ipfs_url).timeout(Duration::from_secs(3)).send().await;
                             match response_result {
                                 Ok(response) => {
                                     if response.status().is_success() {
-                                        let ipfs_response: serde_json::Value = response.json()?;
+                                        let ipfs_response: serde_json::Value = response.json().await?;
                                         let hats: Hats = serde_json::from_value(ipfs_response)?;
                                         for severity in hats.severities {
                                             for contract_link in &severity.contracts_covered {
