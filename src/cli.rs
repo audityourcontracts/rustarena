@@ -51,33 +51,29 @@ impl Cli {
                 }
             });
         } else {
-            let sherlock = Arc::new(SherlockParser::new());
             tasks.push(spawn({
-                let sherlock = Arc::clone(&sherlock);
+                let sherlock = Arc::new(SherlockParser::new());
                 async move {
                     sherlock.parse_dom().await
                 }
             }));
-
-            let code4rena = Arc::new(Code4renaParser::new());
+            
             tasks.push(spawn({
-                let code4rena = Arc::clone(&code4rena);
+                let code4rena = Arc::new(Code4renaParser::new());
                 async move {
                     code4rena.parse_dom().await
                 }
             }));
 
-            let hats = Arc::new(HatsParser::new());
             tasks.push(spawn({
-                let hats = Arc::clone(&hats);
+                let hats = Arc::new(HatsParser::new());
                 async move {
                     hats.parse_dom().await
                 }
             }));
 
-            let immunefi = Arc::new(ImmunefiParser::new());
             tasks.push(spawn({
-                let immunefi = Arc::clone(&immunefi);
+                let immunefi = Arc::new(ImmunefiParser::new());
                 async move {
                     immunefi.parse_dom().await
                 }
