@@ -5,7 +5,11 @@ use scraper::{Html, Selector};
 use crate::github_api;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
-use crate::parsers::parse::{WebsiteParser, Repo};
+use crate::parsers::parse::Repo;
+use std::error::Error;
+use tokio::task;
+use futures::future::try_join_all;
+use crate::parsers::parse::ParseError;
 
 pub struct SherlockParser{
     pub url: String,
@@ -18,8 +22,6 @@ impl SherlockParser{
         }
     }
 }
-
-
 
 pub type Root = Vec<Contests>;
 
@@ -71,46 +73,51 @@ pub struct Contest {
     #[serde(rename = "description")]
     pub description: String,
 }
-
-impl WebsiteParser for SherlockParser {
-    fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error>>  {
+// Sherlock has an API that you can query to get a list of contests and their current state.
+// For the running contests we get their ids and then query and parse their web pages.
+impl SherlockParser {
+    pub async fn parse_dom(&self)  -> Result<Vec<Repo>, Box<dyn Error + Send + Sync>>  {
         let mut repos: Vec<Repo> = Vec::new();
-        let response = reqwest::blocking::get(&self.url)?;
+        let response = reqwest::get(&self.url).await?;
 
         if response.status().is_success() {
-            let json_string = response.text()?; 
+            let json_string = response.text().await?; 
             let contests: Root = serde_json::from_str(&json_string)?;
+
+            let mut tasks = Vec::new();
+            // Only look for RUNNING contests.
             for contest in contests {
                 if contest.status == "RUNNING" {
-                    // Make a request to the specific contest URL
                     let contest_url = format!("{}/{}", self.url, contest.id);
-                    let contest_response = reqwest::blocking::get(&contest_url)?;
-
-                    if contest_response.status().is_success() {
-                        let contest_data: Contest = serde_json::from_str(&contest_response.text()?)?;
-                        let html : String = markdown::to_html(&contest_data.description);
-                        // Process the contest data as needed
-                        let document = Html::parse_document(&html);
-                        let selector = Selector::parse("a").unwrap();
-
-                        for element in document.select(&selector) {
-                            if let Some(link) = element.value().attr("href") {
-                                if link.contains("github.com") {
-                                    // Parse the github url for repo and commit
-                                    if let Some((url, repo, sha)) = github_api::parse_github_url(link) {
-                                        log::debug!("Found github link {}. Cloning {} with sha {}", url, repo, sha);
-                                        let name = format!("repos/{}", repo);
-                                        let commit = Some(sha);
-                                        let repo = Repo { url, name, commit};
-                                        repos.push(repo);
-                                    } else {
-                                        log::info!("Invalid GitHub URL {}", link);
-                                    } 
+                    log::debug!("Spawning to retrieve {}", contest_url);
+                    // Parse contests concurrently.
+                    let task = task::spawn(parse_contest(contest_url));
+                    tasks.push(task);
+                }
+            }
+    
+            let results: Vec<Result<_, Box<dyn Error + Send + Sync>>> = try_join_all(tasks).await?;
+            for result in results {
+                if let Ok(contest_data) = result {
+                    let html: String = markdown::to_html(&contest_data.description);
+                    let document = Html::parse_document(&html);
+                    let selector = Selector::parse("a").unwrap();
+    
+                    for element in document.select(&selector) {
+                        if let Some(link) = element.value().attr("href") {
+                            if link.contains("github.com") {
+                                // Parse the github url for repo and commit
+                                if let Some((url, repo, sha)) = github_api::parse_github_url(link) {
+                                    log::info!("Found github link {}. Cloning {} with sha {}", url, repo, sha);
+                                    let name = format!("repos/{}", repo);
+                                    let commit = Some(sha);
+                                    let repo = Repo { url, name, commit };
+                                    repos.push(repo);
+                                } else {
+                                    log::info!("Invalid GitHub URL {}", link);
                                 }
                             }
                         }
-                    } else {
-                        log::error!("Error parsing JSON for contest ID {}", contest.id);
                     }
                 }
             }
@@ -122,5 +129,17 @@ impl WebsiteParser for SherlockParser {
 
     fn url(&self) -> &str {
         &self.url
+    }
+}
+
+async fn parse_contest(contest_url: String) -> Result<Contest, Box<dyn std::error::Error + Send + Sync>> {
+    let contest_response = reqwest::get(&contest_url).await?;
+
+    if contest_response.status().is_success() {
+        let contest_data: Contest = serde_json::from_str(&contest_response.text().await?)?;
+        Ok(contest_data)
+    } else {
+        log::error!("Error parsing JSON for contest URL {}", contest_url);
+        Err(Box::new(ParseError::new("Failed to parse contest")))
     }
 }

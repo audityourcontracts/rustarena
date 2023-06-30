@@ -1,4 +1,3 @@
-use crate::parsers::parse::{WebsiteParser};
 use crate::parsers::code4rena::Code4renaParser;
 use crate::parsers::sherlock::SherlockParser;
 use crate::parsers::immunefi::ImmunefiParser;
@@ -8,9 +7,10 @@ use crate::contract::{process_repository, ContractKind};
 use clap::Parser;
 use log;
 use crate::parsers::parse::Repo;
-use url::Url;
-use tokio::task::{spawn, spawn_blocking};
-use std::sync::{Arc};
+use tokio::task::spawn;
+use std::sync::Arc;
+use futures::future::try_join_all;
+use tokio::sync::Semaphore;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -20,6 +20,9 @@ struct Args {
 
     #[arg(short, long)]
     github: Option<String>,
+
+    #[arg(short, long, default_value = "10")]
+    max_builders: usize,
 }
 
 pub struct Cli {
@@ -34,54 +37,74 @@ impl Cli {
     pub async fn run(&self) {
         let args = Args::parse();
 
-        let parsers: Vec<Arc<dyn WebsiteParser + Sync + Send>> = vec![
-            Arc::new(Code4renaParser::new()),
-            Arc::new(SherlockParser::new()),
-            Arc::new(ImmunefiParser::new()),
-            Arc::new(HatsParser::new()),
-        ];
+        let mut tasks = Vec::new();
 
         if let Some(github_link) = &args.github {
-            let repo_name = format!("repos/{}", get_last_path_part(&github_link.as_str()).unwrap());
+            let repo_name = format!("repos/{}", github_api::get_last_path_part(&github_link.as_str()).unwrap());
             // Process a single GitHub repository
             let repo = Repo {
                 name: repo_name,
                 url: github_link.clone(),
                 commit: None,
             };
-            // Not sure this is right, how do I know the task returned.
-            spawn_blocking(move || {
+            // Process the results
+            spawn(async move {
                 if let Err(err) = process_results(&repo, args.truncate) {
                     log::error!("Error processing repository: {}", err);
                 }
             });
         } else {
-            let tasks = parsers.into_iter().map(|parser| {
-                spawn_blocking(move || {
-                    log::info!("Parsing website {}", parser.url());
-                    // Parse the dom, clone the repo, process the repo, print the results
-                    match parser.parse_dom() {
-                        Ok(repos) => {
-                            log::debug!("Received {} repos", repos.len());
-                            let rt = tokio::runtime::Runtime::new().unwrap();
-                            rt.block_on(async {
-                                let inner_tasks: Vec<_> = repos.into_iter().map(|repo| {
-                                    tokio::spawn(async move {
-                                        if let Err(err) = process_results(&repo, args.truncate) {
-                                            log::error!("Error processing repository: {}", err);
-                                        }
-                                    })
-                                }).collect();
-                                futures::future::join_all(inner_tasks).await;
-                            });
+            tasks.push(spawn({
+                let immunefi = Arc::new(ImmunefiParser::new());
+                async move {
+                    immunefi.parse_dom().await
+                }
+            }));
+            
+            tasks.push(spawn({
+                let code4rena = Arc::new(Code4renaParser::new());
+                async move {
+                    code4rena.parse_dom().await
+                }
+            }));
+
+            tasks.push(spawn({
+                let sherlock = Arc::new(SherlockParser::new());
+                async move {
+                    sherlock.parse_dom().await
+                }
+            }));
+
+            tasks.push(spawn({
+                let hats = Arc::new(HatsParser::new());
+                async move {
+                    hats.parse_dom().await
+                }
+            }));
+
+            //let max_concurrent_builders = 10; // Set the maximum number of concurrent builders.
+            let semaphore = Arc::new(Semaphore::new(args.max_builders));
+            
+            let builder_tasks = try_join_all(tasks)
+                .await
+                .unwrap()
+                .into_iter()
+                .flat_map(|result| result.unwrap())
+                .map(|repo| {
+                    let semaphore = Arc::clone(&semaphore);
+            
+                    // Spawn a task for each repository
+                    spawn(async move {
+                        let permit = semaphore.acquire().await.expect("Failed to acquire semaphore permit");
+                        if let Err(err) = process_results(&repo, args.truncate) {
+                            log::error!("Error processing repository: {}", err);
                         }
-                        Err(err) => {
-                            log::error!("Error parsing website: {}", err);
-                        }
-                    }
+                        drop(permit);
+                    })
                 })
-            });
-            futures::future::join_all(tasks).await; 
+                .collect::<Vec<_>>();
+            
+            try_join_all(builder_tasks).await.unwrap();
         }
         
     }
@@ -145,13 +168,5 @@ fn truncate_bytecode(bytecode: &str) -> String {
         format!("{}...", &bytecode[..MAX_BYTECODE_LENGTH])
     } else {
         bytecode.to_owned()
-    }
-}
-
-fn get_last_path_part(url: &str) -> Option<String> {
-    if let Ok(parsed_url) = Url::parse(url) {
-        parsed_url.path_segments()?.last().map(String::from)
-    } else {
-        None
     }
 }

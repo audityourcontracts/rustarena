@@ -1,8 +1,7 @@
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use log;
 use scraper::{Html, Selector};
-
-use crate::parsers::parse::{WebsiteParser, Repo};
+use crate::parsers::parse::Repo;
 use crate::github_api;
 
 pub struct Code4renaParser {
@@ -17,8 +16,8 @@ impl Code4renaParser {
     }
 }
 
-impl WebsiteParser for Code4renaParser {
-    fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error>>  {
+impl Code4renaParser {
+    pub async fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error + Send + Sync>>  {
         let launch_options= LaunchOptionsBuilder::default()
             .headless(true)  // Enable browser window
             .build()
