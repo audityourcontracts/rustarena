@@ -52,12 +52,11 @@ impl Cli {
             });
         } else {
             tasks.push(spawn({
-                let hats = Arc::new(HatsParser::new());
+                let immunefi = Arc::new(ImmunefiParser::new());
                 async move {
-                    hats.parse_dom().await
+                    immunefi.parse_dom().await
                 }
             }));
-
             /*
             
             tasks.push(spawn({
@@ -75,11 +74,12 @@ impl Cli {
             }));
 
             tasks.push(spawn({
-                let immunefi = Arc::new(ImmunefiParser::new());
+                let hats = Arc::new(HatsParser::new());
                 async move {
-                    immunefi.parse_dom().await
+                    hats.parse_dom().await
                 }
             }));
+
             */
             
             let results: Vec<Result<_, Box<dyn std::error::Error + std::marker::Send + Sync>>> = try_join_all(tasks)

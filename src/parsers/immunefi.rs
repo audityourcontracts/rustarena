@@ -5,6 +5,8 @@ use url::Url;
 use std::collections::HashSet;
 use crate::github_api;
 use crate::parsers::parse::Repo;
+use tokio::task::{spawn_blocking, spawn};
+use tokio::time::Duration;
 
 pub struct ImmunefiParser {
     pub url: String,
@@ -20,62 +22,60 @@ impl ImmunefiParser {
 
 impl ImmunefiParser {
     pub async fn parse_dom(&self) -> Result<Vec<Repo>, Box<dyn std::error::Error + Send + Sync>> {
-        let launch_options= LaunchOptionsBuilder::default()
+        let mut repos: Vec<Repo> = Vec::new();
+        let mut unique_github_links: HashSet<String> = HashSet::new();
+        let url = self.url.clone(); 
+
+        let unique_links = spawn_blocking(move || {
+            let inner_selector = Selector::parse("a").unwrap();
+            let mut unique_bounty_links: HashSet<String> = HashSet::new();
+
+            let launch_options= LaunchOptionsBuilder::default()
             .headless(true)  // Enable browser window
             .build()
             .expect("Failed to create browser instance");
     
-        let browser = Browser::new(launch_options)?;
-        let tab = browser.new_tab()?;
-        tab.navigate_to(&self.url).unwrap();
-    
-        // Wait until navigation is completed
-        tab.wait_until_navigated()?;
-    
-        // Wait for page load completion
-        tab.wait_for_element("body").unwrap();
-        let remote_object = tab
-            .evaluate("document.documentElement.outerHTML", false)
-            .ok().unwrap();
-    
-        let json = remote_object.value.unwrap();
-        let html = json.as_str();
-    
-        let document = Html::parse_document(html.unwrap());
-        let selector = Selector::parse("a").unwrap();
-    
-        let mut repos: Vec<Repo> = Vec::new();
+            let browser = Browser::new(launch_options).expect("Failed to create browser");
+            let tab = browser.new_tab().expect("Failed to create new tab");
 
-        let mut unique_bounty_links: HashSet<String> = HashSet::new();
-        let mut unique_github_links: HashSet<String> = HashSet::new();
-
-        for element in document.select(&selector) {
-            if let Some(link) = element.value().attr("href") {
-                if link.contains("bounty") {
-                    log::debug!("Found immunefi bounty link {}", link);
-                    unique_bounty_links.insert(link.to_owned());
-                }
-            }
-        }
-        // For each bounty URL navigate to it and see if there's anyt github links in there.
-        let base_url = "https://immunefi.com";
-
-        for bounty_url in unique_bounty_links.into_iter().collect::<Vec<String>>() {
-            let full_url = format!("{}{}", base_url, bounty_url);
-            tab.navigate_to(&full_url)?;
-            tab.wait_until_navigated()?;
-            tab.wait_for_element("body")?;
-
+            tab.navigate_to(&url).unwrap();
+        
+            // Wait until navigation is completed
+            tab.wait_until_navigated();
+        
+            // Wait for page load completion
+            tab.wait_for_element("body").unwrap();
             let remote_object = tab
                 .evaluate("document.documentElement.outerHTML", false)
-                .ok()
-                .unwrap();
-
+                .ok().unwrap();
+        
             let json = remote_object.value.unwrap();
             let html = json.as_str();
-
+        
             let document = Html::parse_document(html.unwrap());
-            let selector = Selector::parse("a").unwrap();
+
+            for element in document.select(&inner_selector) {
+                if let Some(link) = element.value().attr("href") {
+                    if link.contains("bounty") {
+                        log::debug!("Found immunefi bounty link {}", link);
+                        unique_bounty_links.insert(link.to_owned());
+                    }
+                }
+            }
+            unique_bounty_links
+        }).await.unwrap();
+
+        // For each bounty URL navigate to it and see if there's anyt github links in there.
+        let base_url = "https://immunefi.com";
+        let selector = Selector::parse("a").unwrap();
+
+        for bounty_url in unique_links.into_iter().collect::<Vec<String>>() {
+            let full_url = format!("{}{}", base_url, bounty_url);
+            log::info!("Parsing url {}", full_url);
+
+            let response = reqwest::get(&full_url).await?;
+            let body = response.text().await?;
+            let document = Html::parse_document(&body);
 
             for element in document.select(&selector) {
                 if let Some(link) = element.value().attr("href") {
@@ -88,9 +88,9 @@ impl ImmunefiParser {
                             let formatted_url = format!("{}://{}/{}", url.scheme(), url.host_str().unwrap(), formatted_path);
                             if unique_github_links.insert(formatted_url.to_owned()) {
                                 // Only logging on new github urls
-                                log::debug!("Formatted github link: {}", formatted_url);
+                                log::info!("Found github link: {}", formatted_url);
                             }
-                        }else {
+                        } else {
                             log::error!("Couldn't parse the url {}", link)
                         }
                     }
