@@ -82,7 +82,7 @@ impl ImmunefiParser {
                 let permit = semaphore.acquire().await.expect("Failed to acquire semaphore permit"); 
                 let selector = Selector::parse("a").unwrap();
                 let full_url = format!("{}{}", base_url, bounty_url);
-                log::info!("Parsing url {}", full_url);
+                log::debug!("Parsing url {}", full_url);
 
                 let response = reqwest::get(&full_url).await?;
                 let body = response.text().await?;
