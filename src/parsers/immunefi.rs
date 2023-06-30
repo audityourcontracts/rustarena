@@ -6,8 +6,6 @@ use std::collections::HashSet;
 use crate::github_api;
 use crate::parsers::parse::Repo;
 use tokio::task::{spawn_blocking, spawn};
-use tokio::time::Duration;
-use tokio::time::Instant;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
@@ -80,7 +78,7 @@ impl ImmunefiParser {
             let semaphore = Arc::clone(&semaphore); 
 
             // Spawn a task for each bounty URL
-            let task = tokio::spawn(async move {
+            let task = spawn(async move {
                 let permit = semaphore.acquire().await.expect("Failed to acquire semaphore permit"); 
                 let selector = Selector::parse("a").unwrap();
                 let full_url = format!("{}{}", base_url, bounty_url);
