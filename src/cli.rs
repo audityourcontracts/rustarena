@@ -7,10 +7,10 @@ use crate::contract::{process_repository, ContractKind};
 use clap::Parser;
 use log;
 use crate::parsers::parse::Repo;
-use url::Url;
 use tokio::task::spawn;
 use std::sync::Arc;
 use futures::future::try_join_all;
+use tokio::sync::Semaphore;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -37,14 +37,14 @@ impl Cli {
         let mut tasks = Vec::new();
 
         if let Some(github_link) = &args.github {
-            let repo_name = format!("repos/{}", get_last_path_part(&github_link.as_str()).unwrap());
+            let repo_name = format!("repos/{}", github_api::get_last_path_part(&github_link.as_str()).unwrap());
             // Process a single GitHub repository
             let repo = Repo {
                 name: repo_name,
                 url: github_link.clone(),
                 commit: None,
             };
-            // Not sure this is right, how do I know the task returned.
+            // Process the results
             spawn(async move {
                 if let Err(err) = process_results(&repo, args.truncate) {
                     log::error!("Error processing repository: {}", err);
@@ -79,11 +79,29 @@ impl Cli {
                 }
             }));
 
-            let results: Vec<Result<_, Box<dyn std::error::Error + std::marker::Send + Sync>>> = try_join_all(tasks)
-                .await.unwrap();
-            println!("{:?}", results);
-            println!("{:?}", results.len());
-
+            let max_concurrent_builders = 10; // Set the maximum number of concurrent builders.
+            let semaphore = Arc::new(Semaphore::new(max_concurrent_builders));
+            
+            let builder_tasks = try_join_all(tasks)
+                .await
+                .unwrap()
+                .into_iter()
+                .flat_map(|result| result.unwrap())
+                .map(|repo| {
+                    let semaphore = Arc::clone(&semaphore);
+            
+                    // Spawn a task for each repository
+                    spawn(async move {
+                        let permit = semaphore.acquire().await.expect("Failed to acquire semaphore permit");
+                        if let Err(err) = process_results(&repo, args.truncate) {
+                            log::error!("Error processing repository: {}", err);
+                        }
+                        drop(permit);
+                    })
+                })
+                .collect::<Vec<_>>();
+            
+            try_join_all(builder_tasks).await.unwrap();
         }
         
     }
@@ -147,13 +165,5 @@ fn truncate_bytecode(bytecode: &str) -> String {
         format!("{}...", &bytecode[..MAX_BYTECODE_LENGTH])
     } else {
         bytecode.to_owned()
-    }
-}
-
-fn get_last_path_part(url: &str) -> Option<String> {
-    if let Ok(parsed_url) = Url::parse(url) {
-        parsed_url.path_segments()?.last().map(String::from)
-    } else {
-        None
     }
 }
