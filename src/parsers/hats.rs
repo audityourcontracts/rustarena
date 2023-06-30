@@ -58,7 +58,8 @@ pub struct MyQuery;
 pub struct HatsParser {
     pub urls: Vec<String>,
 }
-
+// Hats has a graphql API for each chain that returns a series of IPFS hashes.
+// These IPFS hashes are json that can be parsed concurrently.
 impl HatsParser {
     pub fn new() -> Self {
         HatsParser {
@@ -75,7 +76,7 @@ impl HatsParser {
         let mut repos: Vec<Repo> = Vec::new();
 
         // Construct the GraphQL query
-        let variables: my_query::Variables = my_query::Variables {}; // Define your variables here
+        let variables: my_query::Variables = my_query::Variables {}; // Variables are empty. 
         let query = MyQuery::build_query(variables);
 
         // Create a Reqwest client
@@ -84,10 +85,13 @@ impl HatsParser {
         // Construct the GraphQL request body
         let body = json!({
             "query": query.query.to_string(),
+            // variables would go here if required.
         });
 
+        // A description block of text could contain multiple github links. We want a unique set. 
         let mut unique_github_links: HashSet<String> = HashSet::new();
-        
+
+        // For each chain we want to query the Hats Graphql Api. 
         for url in &self.urls {
             log::info!("Querying {}", url);
             // Send the GraphQL request
@@ -96,7 +100,8 @@ impl HatsParser {
                 .header("Content-Type", "application/json")
                 .json(&body)
                 .send().await?;
-
+            
+            // The IPFS hashes are returned in the query response.
             let response_body: Response<my_query::ResponseData> = response.json().await?;
             let base_url = "https://ipfs.io/ipfs";
 
@@ -154,7 +159,7 @@ impl HatsParser {
                 }
             }
         }
-
+        // Similar to other parsers, create repo structs and return a Vec of them
         for github_link in unique_github_links {
             let url = github_link.to_string();
             let name = format!("repos/{}", github_api::get_last_path_part(&url.as_str()).unwrap());

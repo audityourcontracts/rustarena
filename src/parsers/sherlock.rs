@@ -73,7 +73,8 @@ pub struct Contest {
     #[serde(rename = "description")]
     pub description: String,
 }
-
+// Sherlock has an API that you can query to get a list of contests and their current state.
+// For the running contests we get their ids and then query and parse their web pages.
 impl SherlockParser {
     pub async fn parse_dom(&self)  -> Result<Vec<Repo>, Box<dyn Error + Send + Sync>>  {
         let mut repos: Vec<Repo> = Vec::new();
@@ -84,11 +85,12 @@ impl SherlockParser {
             let contests: Root = serde_json::from_str(&json_string)?;
 
             let mut tasks = Vec::new();
-
+            // Only look for RUNNING contests.
             for contest in contests {
                 if contest.status == "RUNNING" {
                     let contest_url = format!("{}/{}", self.url, contest.id);
                     log::debug!("Spawning to retrieve {}", contest_url);
+                    // Parse contests concurrently.
                     let task = task::spawn(parse_contest(contest_url));
                     tasks.push(task);
                 }

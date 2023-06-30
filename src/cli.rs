@@ -20,6 +20,9 @@ struct Args {
 
     #[arg(short, long)]
     github: Option<String>,
+
+    #[arg(short, long, default_value = "10")]
+    max_builders: usize,
 }
 
 pub struct Cli {
@@ -79,8 +82,8 @@ impl Cli {
                 }
             }));
 
-            let max_concurrent_builders = 10; // Set the maximum number of concurrent builders.
-            let semaphore = Arc::new(Semaphore::new(max_concurrent_builders));
+            //let max_concurrent_builders = 10; // Set the maximum number of concurrent builders.
+            let semaphore = Arc::new(Semaphore::new(args.max_builders));
             
             let builder_tasks = try_join_all(tasks)
                 .await
