@@ -20,7 +20,7 @@ pub enum ContractKind {
     Contract,
 }
 
-pub fn process_repository(repo: &Repo, delete_unsupported: bool) -> Result<(String, Vec<Contract>), Box<dyn std::error::Error>> {
+pub fn process_repository(repo: &Repo, keep_unsupported: bool) -> Result<(String, Vec<Contract>), Box<dyn std::error::Error>> {
     let repo_directory = &repo.name;
     // If we know how to build the repo but it doesn't work move to error
     let mut error_directory = String::from("repos/error");
@@ -105,14 +105,14 @@ pub fn process_repository(repo: &Repo, delete_unsupported: bool) -> Result<(Stri
                 }
                 return Ok((directory, contracts))
             } else {
-                if delete_unsupported {
-                    log::error!("No buildable file found. Deleting repo: {}", repo_directory);
-                    std::fs::remove_dir_all(&repo_directory)?;
-                } else {
+                if keep_unsupported {
                     log::error!("No buildable file found. Moving repo to {}", unsupported_directory);
                     std::fs::create_dir_all(&unsupported_directory)?;
                     std::fs::rename(repo_directory, &unsupported_directory)?;
                     return Ok(("".to_string(), Vec::new()));
+                } else {
+                    log::error!("No buildable file found. Deleting repo: {}", repo_directory);
+                    std::fs::remove_dir_all(&repo_directory)?;
                 }
             }
         }

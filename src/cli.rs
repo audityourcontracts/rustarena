@@ -64,7 +64,7 @@ impl Cli {
                     immunefi.parse_dom().await
                 }
             }));
-            
+             
             tasks.push(spawn({
                 let code4rena = Arc::new(Code4renaParser::new());
                 async move {
@@ -114,10 +114,10 @@ impl Cli {
     }
 }
 
-fn process_results(repo: &Repo, truncate: bool, delete_unsupported: bool) -> Result<(), Box<dyn std::error::Error>> {
+fn process_results(repo: &Repo, truncate: bool, keep_unsupported: bool) -> Result<(), Box<dyn std::error::Error>> {
     match github_api::clone_repository(&repo) {
         Ok(_) => {
-            match process_repository(&repo, delete_unsupported) {
+            match process_repository(&repo, keep_unsupported) {
                 Ok((repo_name, contract_data)) => {
                     let mut sorted_contracts = contract_data;
                     sorted_contracts.sort_by_key(|contract| match contract.contract_kind {
