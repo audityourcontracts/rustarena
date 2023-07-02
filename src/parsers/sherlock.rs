@@ -12,12 +12,14 @@ use futures::future::try_join_all;
 use crate::parsers::parse::ParseError;
 
 pub struct SherlockParser{
+    pub name: String,
     pub url: String,
 }
 
 impl SherlockParser{
     pub fn new() -> Self {
         SherlockParser{
+            name: "hats".to_string(),
             url: "https://mainnet-contest.sherlock.xyz/contests".to_string(),
         }
     }
@@ -109,9 +111,10 @@ impl SherlockParser {
                                 // Parse the github url for repo and commit
                                 if let Some((url, repo, sha)) = github_api::parse_github_url(link) {
                                     log::info!("Found github link {}. Cloning {} with sha {}", url, repo, sha);
+                                    let parser = self.name.to_string();
                                     let name = format!("repos/{}", repo);
                                     let commit = Some(sha);
-                                    let repo = Repo { url, name, commit };
+                                    let repo = Repo { parser, url, name, commit };
                                     repos.push(repo);
                                 } else {
                                     log::info!("Invalid GitHub URL {}", link);

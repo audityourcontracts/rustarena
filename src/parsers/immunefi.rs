@@ -10,12 +10,14 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 
 pub struct ImmunefiParser {
+    pub name: String,
     pub url: String,
 }
 
 impl ImmunefiParser {
     pub fn new() -> Self {
         ImmunefiParser {
+            name: "hats".to_string(),
             url: "https://immunefi.com/explore/".to_string(),
         }
     }
@@ -126,10 +128,11 @@ impl ImmunefiParser {
         
         // Turn the results into repos
         for github_link in unique_github_links {
+            let parser = self.name.to_string();
             let url = github_link.to_string();
             let name = format!("repos/{}", github_api::get_last_path_part(&url.as_str()).unwrap());
             let commit = None;
-            let repo = Repo { url, name, commit };
+            let repo = Repo { parser, url, name, commit };
             repos.push(repo);
         }
         // Return the repos

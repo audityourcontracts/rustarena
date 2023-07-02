@@ -23,6 +23,9 @@ struct Args {
 
     #[arg(short, long, default_value = "10")]
     max_builders: usize,
+
+    #[arg(short, long, default_value = "false")]
+    keep_unsupported: bool,
 }
 
 pub struct Cli {
@@ -43,13 +46,14 @@ impl Cli {
             let repo_name = format!("repos/{}", github_api::get_last_path_part(&github_link.as_str()).unwrap());
             // Process a single GitHub repository
             let repo = Repo {
+                parser: "command_line".to_string(),
                 name: repo_name,
                 url: github_link.clone(),
                 commit: None,
             };
             // Process the results
             spawn(async move {
-                if let Err(err) = process_results(&repo, args.truncate) {
+                if let Err(err) = process_results(&repo, args.truncate, args.keep_unsupported) {
                     log::error!("Error processing repository: {}", err);
                 }
             });
@@ -96,7 +100,7 @@ impl Cli {
                     // Spawn a task for each repository
                     spawn(async move {
                         let permit = semaphore.acquire().await.expect("Failed to acquire semaphore permit");
-                        if let Err(err) = process_results(&repo, args.truncate) {
+                        if let Err(err) = process_results(&repo, args.truncate, args.keep_unsupported) {
                             log::error!("Error processing repository: {}", err);
                         }
                         drop(permit);
@@ -110,10 +114,10 @@ impl Cli {
     }
 }
 
-fn process_results(repo: &Repo, truncate: bool) -> Result<(), Box<dyn std::error::Error>> {
+fn process_results(repo: &Repo, truncate: bool, delete_unsupported: bool) -> Result<(), Box<dyn std::error::Error>> {
     match github_api::clone_repository(&repo) {
         Ok(_) => {
-            match process_repository(&repo.name) {
+            match process_repository(&repo, delete_unsupported) {
                 Ok((repo_name, contract_data)) => {
                     let mut sorted_contracts = contract_data;
                     sorted_contracts.sort_by_key(|contract| match contract.contract_kind {

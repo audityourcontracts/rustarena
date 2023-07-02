@@ -4,6 +4,7 @@ use crate::builders::build::Build;
 use crate::builders::forge::ForgeBuilder;
 use crate::builders::hardhat::{HardhatBuilder, HardhatMode};
 use crate::builders::truffle::TruffleBuilder;
+use crate::parsers::parse::Repo;
 
 // Contract struct. ContractKind for Contract vs Interfaces. Interfaces have the bytecode 0x
 #[derive(Clone, Debug)]
@@ -19,7 +20,8 @@ pub enum ContractKind {
     Contract,
 }
 
-pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>), Box<dyn std::error::Error>> {
+pub fn process_repository(repo: &Repo, delete_unsupported: bool) -> Result<(String, Vec<Contract>), Box<dyn std::error::Error>> {
+    let repo_directory = &repo.name;
     // If we know how to build the repo but it doesn't work move to error
     let mut error_directory = String::from("repos/error");
     let repo_path = std::path::Path::new(repo_directory);
@@ -32,7 +34,8 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
     log::debug!("Error directory set to {}", error_directory);
 
     // We don't know how to build this kind of repo 
-        let mut unsupported_directory = String::from("repos/unsupported");
+        let unsupported_base = format!("repos/unsupported/{}", &repo.parser);
+        let mut unsupported_directory = String::from(unsupported_base);
         let repo_path = std::path::Path::new(repo_directory);
         if let Ok(repo_name) = repo_path.strip_prefix("repos") {
             if let Some(name) = repo_name.to_str() {
@@ -102,10 +105,15 @@ pub fn process_repository(repo_directory: &str) -> Result<(String, Vec<Contract>
                 }
                 return Ok((directory, contracts))
             } else {
-                log::error!("No buildable file found. Moving repo to {}", unsupported_directory);
-                std::fs::create_dir_all(&unsupported_directory)?;
-                std::fs::rename(repo_directory, &unsupported_directory)?;
-                return Ok(("".to_string(), Vec::new()));
+                if delete_unsupported {
+                    log::error!("No buildable file found. Deleting repo: {}", repo_directory);
+                    std::fs::remove_dir_all(&repo_directory)?;
+                } else {
+                    log::error!("No buildable file found. Moving repo to {}", unsupported_directory);
+                    std::fs::create_dir_all(&unsupported_directory)?;
+                    std::fs::rename(repo_directory, &unsupported_directory)?;
+                    return Ok(("".to_string(), Vec::new()));
+                }
             }
         }
     }

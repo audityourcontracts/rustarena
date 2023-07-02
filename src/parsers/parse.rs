@@ -3,6 +3,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct Repo {
+    pub parser: String,
     pub url: String,
     pub name: String,
     pub commit: Option<String>,

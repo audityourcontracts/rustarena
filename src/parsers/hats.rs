@@ -56,6 +56,7 @@ pub struct Severity {
 )]
 pub struct MyQuery;
 pub struct HatsParser {
+    pub name: String,
     pub urls: Vec<String>,
 }
 // Hats has a graphql API for each chain that returns a series of IPFS hashes.
@@ -63,6 +64,7 @@ pub struct HatsParser {
 impl HatsParser {
     pub fn new() -> Self {
         HatsParser {
+            name: "hats".to_string(),
             urls: vec!["https://api.thegraph.com/subgraphs/name/hats-finance/hats".to_string(),
                        "https://api.thegraph.com/subgraphs/name/hats-finance/hats_polygon".to_string(),
                        "https://api.thegraph.com/subgraphs/name/hats-finance/hats_arbitrum".to_string(),
@@ -161,10 +163,11 @@ impl HatsParser {
         }
         // Similar to other parsers, create repo structs and return a Vec of them
         for github_link in unique_github_links {
+            let parser = self.name.to_string();
             let url = github_link.to_string();
             let name = format!("repos/{}", github_api::get_last_path_part(&url.as_str()).unwrap());
             let commit = None;
-            let repo = Repo { url, name, commit };
+            let repo = Repo { parser, url, name, commit };
             log::debug!("Adding repo {:?}", repo);
             repos.push(repo);
         }
