@@ -1,126 +1,18 @@
 use std::process::{Command, exit};
+use ethers_solc::artifacts::{ImportDirective, NodeType};
 use log;
 use std::path::{Path};
 use std::fs;
 use std::env;
 use std::collections::HashMap;
 use walkdir::WalkDir;
-
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
+use ethers_solc::ConfigurableContractArtifact;
 
 use crate::builders::build::Build;
 use crate::contract::{Contract, ContractKind};
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Metadata {
-    pub abi: Vec<Abi>,
-    pub bytecode: Bytecode,
-    pub ast: Ast,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Abi {
-    pub inputs: Option<Vec<Input>>,
-    pub state_mutability: Option<String>,
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub name: Option<String>,
-    pub anonymous: Option<bool>,
-    #[serde(default)]
-    pub outputs: Option<Vec<Output>>
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Input {
-    pub internal_type: String,
-    pub name: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub indexed: Option<bool>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Output {
-    pub internal_type: String,
-    pub name: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Bytecode {
-    pub object: String,
-    pub source_map: Option<String>,
-    pub link_references: LinkReferences,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LinkReferences {
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Ast {
-    pub absolute_path: String,
-    pub id: i64,
-    pub node_type: String,
-    pub src: String,
-    pub nodes: Vec<Node>,
-    pub license: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Node {
-    pub id: i64,
-    pub node_type: String,
-    pub src: String,
-    pub nodes: Vec<Node>,
-    pub literals: Option<Vec<String>>,
-    pub absolute_path: Option<String>,
-    pub file: Option<String>,
-    pub name_location: Option<String>,
-    pub scope: Option<i64>,
-    pub source_unit: Option<i64>,
-    #[serde(default)]
-    pub symbol_aliases: Vec<SymbolAliases>,
-    pub unit_alias: Option<String>,
-    #[serde(rename = "abstract")]
-    pub abstract_field: Option<bool>,
-    #[serde(default)]
-    pub canonical_name: Option<String>,
-    #[serde(default)]
-    pub contract_dependencies: Vec<i64>,
-    pub contract_kind: Option<String>,
-    pub fully_implemented: Option<bool>,
-    pub linearized_base_contracts: Option<Vec<i64>>,
-    pub name: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SymbolAliases {
-    pub foreign: Foreign,
-    pub name_location: Option<String>,
-    pub local: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Foreign {
-    pub id: i64,
-    pub name: String,
-    pub node_type: String,
-    pub referenced_declaration: Option<i64>,
-    pub src: String,
-} 
 pub struct ForgeBuilder;
 
 impl Build for ForgeBuilder {
@@ -196,25 +88,28 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                 if extension == "json" {
                     if let Some(file_stem) = entry_path.file_stem() {
                         if let Some(contract_name) = file_stem.to_str() {
-                            let json_content = match fs::read_to_string(&entry_path) {
-                                Ok(content) => content,
+                            let metadata: ConfigurableContractArtifact = match ethers_solc::utils::read_json_file(entry_path) {
+                                Ok(metadata) => metadata,
                                 Err(err) => {
                                     log::error!("Error reading JSON file '{}': {}", entry_path.display(), err);
                                     continue;
                                 }
                             };
 
-                            let metadata: Metadata = match serde_json::from_str(&json_content) {
-                                Ok(metadata) => metadata,
-                                Err(err) => {
-                                    log::error!("Error parsing JSON file '{}': {}", entry_path.display(), err);
+                            let bytecode_object = match metadata.bytecode {
+                                Some(bytecode_object) => bytecode_object,
+                                None => {
+                                    log::error!("No bytecode found in {:?} {:?}", entry_path, &metadata.bytecode);
                                     continue;
                                 }
                             };
 
-                            let bytecode_object = metadata.bytecode.object;
+                            let bytecode = match bytecode_object.object.as_bytes() {
+                                Some(bytecode) => bytecode.to_string(),
+                                None => "0x".to_string() 
+                            };
 
-                            let contract_kind = if bytecode_object == "0x" {
+                            let contract_kind = if bytecode == "0x" {
                                 ContractKind::Interface
                             } else {
                                 ContractKind::Contract
@@ -223,7 +118,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                             let contract = Contract {
                                 contract_name: contract_name.to_owned(),
                                 contract_kind,
-                                bytecode: bytecode_object.to_owned(),
+                                bytecode: bytecode.to_owned(),
                                 imports: None,
                             };
                             contract_map.insert(contract_name.to_owned(), contract);
@@ -248,25 +143,34 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
         if entry_path.is_file() && entry_path.extension() == Some("json".as_ref()) {
             if let Some(file_stem) = entry_path.file_stem() {
                 if let Some(contract_name) = file_stem.to_str() {
-                    let json_content = match fs::read_to_string(&entry_path) {
-                        Ok(content) => content,
+                    let metadata: ConfigurableContractArtifact = match ethers_solc::utils::read_json_file(entry_path) {
+                        Ok(metadata) => metadata,
                         Err(err) => {
                             log::error!("Error reading JSON file '{}': {}", entry_path.display(), err);
                             continue;
                         }
                     };
 
-                    let metadata: Metadata = match serde_json::from_str(&json_content) {
-                        Ok(metadata) => metadata,
-                        Err(parseerr) => {
-                            log::error!("Error parsing JSON file '{}': {}", entry_path.display(), parseerr);
+                    let bytecode_object = match metadata.bytecode {
+                        Some(bytecode_object) => bytecode_object,
+                        None => {
+                            log::error!("No bytecode found in {:?} {:?}", entry_path, &metadata.bytecode);
                             continue;
                         }
                     };
 
+                    let bytecode = match bytecode_object.object.as_bytes() {
+                        Some(bytecode) => bytecode.to_string(),
+                        None => "0x".to_string() 
+                    };
+
                     if let Some(contract) = contract_map.get_mut(contract_name) {
-                        for node in metadata.ast.nodes {
-                            if node.node_type == "ImportDirective" {
+                        for node in metadata.ast.unwrap().nodes {
+                            if node.node_type == NodeType::ImportDirective {
+                                let foreign_name = node.other.get("absolutePath").unwrap().to_string();
+                                let foreign_name = Path::new(&foreign_name).file_stem().unwrap().to_str().unwrap();
+                                println!("Contract: {:?} Imports: {:?}", &contract.contract_name, &foreign_name);
+                                /*
                                 for symbol_alias in node.symbol_aliases {
                                     let foreign_name = symbol_alias.foreign.name.clone();
 
@@ -274,6 +178,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                                         contract.imports.get_or_insert_with(Vec::new).push(imported_contract.clone());
                                     }
                                 }
+                                 */
                             }
                         }
                     } else {

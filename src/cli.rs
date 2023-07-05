@@ -4,13 +4,14 @@ use crate::parsers::immunefi::ImmunefiParser;
 use crate::parsers::hats::HatsParser;
 use crate::github_api;
 use crate::contract::{process_repository, ContractKind};
-use clap::Parser;
-use log;
 use crate::parsers::parse::Repo;
-use tokio::task::spawn;
+
+use tokio::task::{spawn_blocking,spawn};
 use std::sync::Arc;
 use futures::future::try_join_all;
 use tokio::sync::Semaphore;
+use clap::Parser;
+use log;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -46,13 +47,13 @@ impl Cli {
             let repo_name = format!("repos/{}", github_api::get_last_path_part(&github_link.as_str()).unwrap());
             // Process a single GitHub repository
             let repo = Repo {
-                parser: "command_line".to_string(),
+                parser: "github_command_line".to_string(),
                 name: repo_name,
                 url: github_link.clone(),
                 commit: None,
             };
-            // Process the results
-            spawn(async move {
+            log::debug!("Initiating Github build for {}", &repo.name);
+            spawn_blocking(move || {
                 if let Err(err) = process_results(&repo, args.truncate, args.keep_unsupported) {
                     log::error!("Error processing repository: {}", err);
                 }
