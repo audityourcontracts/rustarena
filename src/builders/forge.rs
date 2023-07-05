@@ -2,12 +2,9 @@ use std::process::{Command, exit};
 use ethers_solc::artifacts::{ImportDirective, NodeType};
 use log;
 use std::path::{Path};
-use std::fs;
 use std::env;
 use std::collections::HashMap;
 use walkdir::WalkDir;
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
 use ethers_solc::ConfigurableContractArtifact;
 
 use crate::builders::build::Build;
@@ -78,7 +75,8 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
     let walker = WalkDir::new(&out_dir).into_iter();
 
     // First pass will find all json files, parse them and add them to a contract_map
-    // Imports are None at this stage as they are populated in the second pass. 
+    // Contract imports are None at this stage as they are populated in the second pass. 
+    // Not all contracts will be in the map until the first pass is complete.
 
     for entry in walker.flatten() {
         let entry_path = entry.path();
@@ -104,6 +102,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                                 }
                             };
 
+                            // Convert the bytecode to a string, if it's 0x bytes make it '0x' as a string.
                             let bytecode = match bytecode_object.object.as_bytes() {
                                 Some(bytecode) => bytecode.to_string(),
                                 None => "0x".to_string() 
@@ -151,34 +150,18 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                         }
                     };
 
-                    let bytecode_object = match metadata.bytecode {
-                        Some(bytecode_object) => bytecode_object,
-                        None => {
-                            log::error!("No bytecode found in {:?} {:?}", entry_path, &metadata.bytecode);
-                            continue;
-                        }
-                    };
-
-                    let bytecode = match bytecode_object.object.as_bytes() {
-                        Some(bytecode) => bytecode.to_string(),
-                        None => "0x".to_string() 
-                    };
-
+                    // Get the current contract out of the map, iterate over the nodes
+                    // And where there is an import grab that out of the map and append
+                    // The imports to it.
                     if let Some(contract) = contract_map.get_mut(contract_name) {
                         for node in metadata.ast.unwrap().nodes {
                             if node.node_type == NodeType::ImportDirective {
                                 let foreign_name = node.other.get("absolutePath").unwrap().to_string();
                                 let foreign_name = Path::new(&foreign_name).file_stem().unwrap().to_str().unwrap();
-                                println!("Contract: {:?} Imports: {:?}", &contract.contract_name, &foreign_name);
-                                /*
-                                for symbol_alias in node.symbol_aliases {
-                                    let foreign_name = symbol_alias.foreign.name.clone();
-
-                                    if let Some(imported_contract) = contract_map_clone.get(&foreign_name) {
-                                        contract.imports.get_or_insert_with(Vec::new).push(imported_contract.clone());
-                                    }
+                                // Get the imported contract (foreign_name) out of the map and append to the current contract imports.
+                                if let Some(imported_contract) = contract_map_clone.get(foreign_name) {
+                                    contract.imports.get_or_insert_with(Vec::new).push(imported_contract.clone());
                                 }
-                                 */
                             }
                         }
                     } else {
