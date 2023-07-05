@@ -22,3 +22,4 @@ markdown = "0.3.0"
 tokio = { version = "1.28.2", features = ["full"] }
 graphql_client = "0.13.0"
 futures = "0.3.28"
+ethers-solc = "2.0.7"
