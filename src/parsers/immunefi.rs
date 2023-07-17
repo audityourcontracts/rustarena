@@ -41,14 +41,23 @@ impl ImmunefiParser {
     
             let browser = Browser::new(launch_options).expect("Failed to create browser");
             let tab = browser.new_tab().expect("Failed to create new tab");
-
+            
+            log::debug!("Immunefi parser navigating to {}", &url);
             tab.navigate_to(&url).unwrap();
         
             // Wait until navigation is completed
-            tab.wait_until_navigated().unwrap();
+            match tab.wait_until_navigated() {
+                Ok(_) => {
+                    // Navigation completed successfully
+                }
+                Err(err) => {
+                    log::error!("Error occurred during navigation: {}", err);
+                }
+            }
         
             // Wait for page load completion and grab the entire HTML.
             tab.wait_for_element("body").unwrap();
+
             let remote_object = tab
                 .evaluate("document.documentElement.outerHTML", false)
                 .ok().unwrap();

@@ -86,8 +86,8 @@ impl Cli {
                     hats.parse_dom().await
                 }
             }));
-
-            //let max_concurrent_builders = 10; // Set the maximum number of concurrent builders.
+             
+            //Set the maximum number of concurrent builders.
             let semaphore = Arc::new(Semaphore::new(args.max_builders));
             
             let builder_tasks = try_join_all(tasks)
