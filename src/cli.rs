@@ -12,7 +12,7 @@ use crate::parsers::sherlock::SherlockParser;
 use crate::parsers::immunefi::ImmunefiParser;
 use crate::parsers::hats::HatsParser;
 use crate::github_api;
-use crate::contract::{process_repository, ContractKind};
+use crate::contract::{process_repository, Kind};
 use crate::parsers::parse::Repo;
 
 #[derive(Parser, Debug)]
@@ -123,9 +123,9 @@ fn process_results(repo: &Repo, truncate: bool, keep_unsupported: bool) -> Resul
             match process_repository(&repo, keep_unsupported) {
                 Ok((_repo_name, contract_data)) => {
                     let mut sorted_contracts = contract_data;
-                    sorted_contracts.sort_by_key(|contract| match contract.contract_kind {
-                        ContractKind::Interface => 0,
-                        ContractKind::Contract => 1,
+                    sorted_contracts.sort_by_key(|contract| match contract.kind {
+                        Kind::Interface => 0,
+                        Kind::Contract => 1,
                     });
 
                     // Create a results directory if it doesn't exist. 

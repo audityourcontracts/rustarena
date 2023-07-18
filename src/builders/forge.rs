@@ -8,7 +8,7 @@ use walkdir::WalkDir;
 use ethers_solc::ConfigurableContractArtifact;
 
 use crate::builders::build::Build;
-use crate::contract::{Contract, ContractKind};
+use crate::contract::{Contract, Kind};
 
 pub struct ForgeBuilder;
 
@@ -108,17 +108,21 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                                 None => "0x".to_string() 
                             };
 
-                            let contract_kind = if bytecode == "0x" {
-                                ContractKind::Interface
+                            let kind = if bytecode == "0x" {
+                                Kind::Interface
                             } else {
-                                ContractKind::Contract
+                                Kind::Contract
                             };
 
                             let contract = Contract {
                                 contract_name: contract_name.to_owned(),
-                                contract_kind,
+                                kind,
                                 bytecode: bytecode.to_owned(),
                                 imports: None,
+                                sourcemap: None,
+                                absolute_path: None,
+                                id: None,
+                                file_contents: None
                             };
                             contract_map.insert(contract_name.to_owned(), contract);
                         }

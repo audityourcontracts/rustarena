@@ -9,7 +9,7 @@ use serde_derive::Deserialize;
 use serde_derive::Serialize;
 
 use crate::builders::build::Build;
-use crate::contract::{Contract, ContractKind};
+use crate::contract::{Contract, Kind};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -167,17 +167,21 @@ pub fn process_truffle_directory(repo_directory: &str, artifact_dir: &str) -> (S
 
                             let bytecode_object = metadata.bytecode;
 
-                            let contract_kind = if bytecode_object == "0x" {
-                                ContractKind::Interface
+                            let kind = if bytecode_object == "0x" {
+                                Kind::Interface
                             } else {
-                                ContractKind::Contract
+                                Kind::Contract
                             };
 
                             let contract = Contract {
                                 contract_name: contract_name.to_owned(),
-                                contract_kind,
+                                kind,
                                 bytecode: bytecode_object.to_owned(),
                                 imports: None,
+                                sourcemap: None,
+                                absolute_path: None,
+                                id: None,
+                                file_contents: None
                             };
                             contract_map.insert(contract_name.to_owned(), contract);
                         }

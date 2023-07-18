@@ -12,13 +12,17 @@ use crate::parsers::parse::Repo;
 #[derive(Clone, Debug, Serialize)]
 pub struct Contract {
     pub contract_name: String,
-    pub contract_kind: ContractKind,
+    pub kind: Kind,
     pub bytecode: String,
     pub imports: Option<Vec<Contract>>,
+    pub sourcemap: Option<String>,
+    pub absolute_path: Option<String>,
+    pub id: Option<u32>,
+    pub file_contents: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub enum ContractKind {
+pub enum Kind {
     Interface,
     Contract,
 }
