@@ -198,8 +198,10 @@ pub fn process_artifacts_directory(repo_directory: &str) -> (String, Vec<Contrac
                                     contract_name: contract_name.to_owned(),
                                     kind,
                                     bytecode: bytecode_object.to_owned(),
+                                    deployed_bytecode: None,
                                     imports: None,
                                     sourcemap: None,
+                                    deployed_sourcemap: None,
                                     absolute_path: None,
                                     id: None,
                                     file_contents: None

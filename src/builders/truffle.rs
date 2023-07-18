@@ -177,8 +177,10 @@ pub fn process_truffle_directory(repo_directory: &str, artifact_dir: &str) -> (S
                                 contract_name: contract_name.to_owned(),
                                 kind,
                                 bytecode: bytecode_object.to_owned(),
+                                deployed_bytecode: None,
                                 imports: None,
                                 sourcemap: None,
+                                deployed_sourcemap: None,
                                 absolute_path: None,
                                 id: None,
                                 file_contents: None

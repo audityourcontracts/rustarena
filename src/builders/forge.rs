@@ -94,7 +94,7 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                                 }
                             };
 
-                            let bytecode_object = match metadata.bytecode {
+                            let bytecode_object = match &metadata.bytecode {
                                 Some(bytecode_object) => bytecode_object,
                                 None => {
                                     log::error!("No bytecode found in {:?} {:?}", entry_path, &metadata.bytecode);
@@ -108,21 +108,57 @@ pub fn process_out_directory(repo_directory: &str) -> (String, Vec<Contract>) {
                                 None => "0x".to_string() 
                             };
 
+                            let deployed_bytecode_object = match &metadata.deployed_bytecode {
+                                Some(deployed_bytecode_object) => deployed_bytecode_object,
+                                None => {
+                                    log::error!("No bytecode found in {:?} {:?}", entry_path, &metadata.deployed_bytecode);
+                                    continue;
+                                }
+                            };
+
+                            let deployed_bytecode = match &deployed_bytecode_object.bytecode {
+                                Some(deployed_bytecode) => deployed_bytecode,
+                                None => {
+                                    log::error!("No deployed bytecode found in {:?} {:?}", entry_path, &metadata.deployed_bytecode);
+                                    continue;
+                                }
+                            };
+
+                            let dep_bytecode = match &deployed_bytecode.object.as_bytes() {
+                                Some(bytecode) => bytecode.to_string(),
+                                None => "0x".to_string()  
+                            };
+
                             let kind = if bytecode == "0x" {
                                 Kind::Interface
                             } else {
                                 Kind::Contract
                             };
 
+                            // Unwrap AST as it has the absolute_path in it
+                            let ast = match &metadata.ast {
+                                Some(ast) => ast,
+                                None => {
+                                    log::debug!("No ast found in {:?}", entry_path);
+                                    continue; 
+                                }
+                            };
+
+                            // Read the file bytes and store in file_contents 
+                            let file_contents_path = Path::new(&repo_directory).join(&ast.absolute_path);
+                            let file_contents = std::fs::read_to_string(file_contents_path).unwrap();
+
                             let contract = Contract {
                                 contract_name: contract_name.to_owned(),
                                 kind,
                                 bytecode: bytecode.to_owned(),
+                                deployed_bytecode: Some(dep_bytecode.to_owned()),
                                 imports: None,
-                                sourcemap: None,
-                                absolute_path: None,
-                                id: None,
-                                file_contents: None
+                                sourcemap: bytecode_object.source_map.to_owned(),
+                                deployed_sourcemap: deployed_bytecode.source_map.to_owned(),
+                                absolute_path: Some(ast.absolute_path.to_owned()),
+                                id: metadata.id,
+                                file_contents: Some(file_contents),
                             };
                             contract_map.insert(contract_name.to_owned(), contract);
                         }
