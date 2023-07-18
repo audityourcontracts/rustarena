@@ -1,17 +1,19 @@
-use crate::parsers::code4rena::Code4renaParser;
-use crate::parsers::sherlock::SherlockParser;
-use crate::parsers::immunefi::ImmunefiParser;
-use crate::parsers::hats::HatsParser;
-use crate::github_api;
-use crate::contract::{process_repository, ContractKind};
-use crate::parsers::parse::Repo;
-
+use std::path::Path;
+use std::fs;
 use tokio::task::{spawn_blocking,spawn};
 use std::sync::Arc;
 use futures::future::try_join_all;
 use tokio::sync::Semaphore;
 use clap::Parser;
 use log;
+
+use crate::parsers::code4rena::Code4renaParser;
+use crate::parsers::sherlock::SherlockParser;
+use crate::parsers::immunefi::ImmunefiParser;
+use crate::parsers::hats::HatsParser;
+use crate::github_api;
+use crate::contract::{process_repository, Kind};
+use crate::parsers::parse::Repo;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -86,7 +88,7 @@ impl Cli {
                     hats.parse_dom().await
                 }
             }));
-             
+
             //Set the maximum number of concurrent builders.
             let semaphore = Arc::new(Semaphore::new(args.max_builders));
             
@@ -119,32 +121,25 @@ fn process_results(repo: &Repo, truncate: bool, keep_unsupported: bool) -> Resul
     match github_api::clone_repository(&repo) {
         Ok(_) => {
             match process_repository(&repo, keep_unsupported) {
-                Ok((repo_name, contract_data)) => {
+                Ok((_repo_name, contract_data)) => {
                     let mut sorted_contracts = contract_data;
-                    sorted_contracts.sort_by_key(|contract| match contract.contract_kind {
-                        ContractKind::Interface => 0,
-                        ContractKind::Contract => 1,
+                    sorted_contracts.sort_by_key(|contract| match contract.kind {
+                        Kind::Interface => 0,
+                        Kind::Contract => 1,
                     });
 
-                    // Enumerate the Vec<Contract> received by calling process_out_directory
-                    for contract in sorted_contracts {
-                        println!("Repository: {}", repo_name);
-                        println!("Contract Name: {}", contract.contract_name);
-                        match &contract.imports {
-                            Some(imports) => println!("Number of imports: {}", imports.len()),
-                            None => println!("Number of imports: 0"),
-                        }
-                        match contract.contract_kind {
-                            ContractKind::Interface => {
-                                println!("Contract Type: Interface");
-                                print_bytecode(contract.bytecode, truncate);
-                            }
-                            ContractKind::Contract => {
-                                println!("Contract Type: Contract");
-                                print_bytecode(contract.bytecode, truncate);
-                            }
-                        }
+                    // Create a results directory if it doesn't exist. 
+                    let results_dir = Path::new("results");
+                    if !results_dir.exists() {
+                        fs::create_dir(results_dir)?;
                     }
+
+                    // Serialize and write the sorted contracts to a JSON file
+                    let repo_path = Path::new(&repo.name).strip_prefix("repos")?;
+                    let json_data = serde_json::to_string_pretty(&sorted_contracts)?;
+                    let json_filename = format!("results/{}_contracts.json", &repo_path.to_string_lossy());
+                    log::info!("Writing {}", &json_filename);
+                    fs::write(json_filename, json_data)?;
                 }
                 Err(err) => {
                     log::error!("Error processing repository: {}", err);

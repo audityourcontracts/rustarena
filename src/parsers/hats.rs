@@ -1,5 +1,3 @@
-use crate::parsers::parse::Repo;
-use crate::github_api;
 use serde_json::json;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
@@ -10,6 +8,9 @@ use url::Url;
 use std::error::Error;
 use std::time::Duration;
 use tokio::task;
+
+use crate::parsers::parse::Repo;
+use crate::github_api;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

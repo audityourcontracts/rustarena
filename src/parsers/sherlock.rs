@@ -2,14 +2,15 @@ use reqwest;
 use serde_json;
 use markdown;
 use scraper::{Html, Selector};
-use crate::github_api;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
-use crate::parsers::parse::Repo;
 use std::error::Error;
 use tokio::task;
 use futures::future::try_join_all;
+
 use crate::parsers::parse::ParseError;
+use crate::github_api;
+use crate::parsers::parse::Repo;
 
 pub struct SherlockParser{
     pub name: String,
