@@ -2,6 +2,7 @@ use log;
 use std::fs;
 use git2::{Oid, Repository};
 use url::Url;
+
 use crate::parsers::parse::Repo;
 
 pub fn clone_repository(repository: &Repo) -> Result<(), Box<dyn std::error::Error>> {

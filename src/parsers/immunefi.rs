@@ -3,11 +3,12 @@ use log;
 use scraper::{Html, Selector};
 use url::Url;
 use std::collections::HashSet;
-use crate::github_api;
-use crate::parsers::parse::Repo;
 use tokio::task::{spawn_blocking, spawn};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
+
+use crate::github_api;
+use crate::parsers::parse::Repo;
 
 pub struct ImmunefiParser {
     pub name: String,

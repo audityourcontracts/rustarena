@@ -4,12 +4,11 @@ use std::path::{Path};
 use std::fs;
 use std::collections::HashMap;
 use walkdir::WalkDir;
+use serde_derive::Deserialize;
+use serde_derive::Serialize;
 
 use crate::builders::build::Build;
 use crate::contract::{Contract, ContractKind};
-
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

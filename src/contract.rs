@@ -1,5 +1,7 @@
 use log;
 use walkdir::WalkDir;
+use serde::Serialize;
+
 use crate::builders::build::Build;
 use crate::builders::forge::ForgeBuilder;
 use crate::builders::hardhat::{HardhatBuilder, HardhatMode};
@@ -7,14 +9,15 @@ use crate::builders::truffle::TruffleBuilder;
 use crate::parsers::parse::Repo;
 
 // Contract struct. ContractKind for Contract vs Interfaces. Interfaces have the bytecode 0x
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Contract {
     pub contract_name: String,
     pub contract_kind: ContractKind,
     pub bytecode: String,
     pub imports: Option<Vec<Contract>>,
 }
-#[derive(Clone, Debug)]
+
+#[derive(Clone, Debug, Serialize)]
 pub enum ContractKind {
     Interface,
     Contract,

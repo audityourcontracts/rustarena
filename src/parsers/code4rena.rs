@@ -1,6 +1,7 @@
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use log;
 use scraper::{Html, Selector};
+
 use crate::parsers::parse::Repo;
 use crate::github_api;
 

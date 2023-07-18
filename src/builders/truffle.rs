@@ -1,11 +1,10 @@
 use std::process::{Command, exit};
 use log;
-use std::path::{Path};
+use std::path::Path;
 use std::fs;
 use std::env;
 use std::collections::HashMap;
 use walkdir::WalkDir;
-
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 
