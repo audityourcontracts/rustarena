@@ -173,17 +173,38 @@ pub fn process_truffle_directory(repo_directory: &str, artifact_dir: &str) -> (S
                                 Kind::Contract
                             };
 
+                            // Read the file bytes and store in file_contents 
+                            let absolute_path = match metadata.ast.absolute_path {
+                                Some(absolute_path) => absolute_path,
+                                None => {
+                                    log::debug!("No string in  {:?}", &metadata.ast.absolute_path);
+                                    continue; 
+                                }
+                            };
+
+                            let absolute_path_stripped = match absolute_path.strip_prefix("project:/") {
+                                Some(absolute_path_stripped) => absolute_path_stripped,
+                                None => {
+                                    log::debug!("With prefix in string");
+                                    continue; 
+                                }
+                            };
+                            
+                            let file_contents_path = Path::new(&repo_directory).join(&absolute_path_stripped);
+                            log::info!("Trying to read file in {}", &file_contents_path.to_string_lossy());
+                            let file_contents = std::fs::read_to_string(file_contents_path).unwrap();
+
                             let contract = Contract {
                                 contract_name: contract_name.to_owned(),
                                 kind,
                                 bytecode: bytecode_object.to_owned(),
-                                deployed_bytecode: None,
+                                deployed_bytecode: Some(metadata.deployed_bytecode),
                                 imports: None,
-                                sourcemap: None,
-                                deployed_sourcemap: None,
-                                absolute_path: None,
-                                id: None,
-                                file_contents: None
+                                sourcemap: Some(metadata.source_map),
+                                deployed_sourcemap: Some(metadata.deployed_source_map),
+                                absolute_path: Some(absolute_path_stripped.to_string()),
+                                id: Some(metadata.ast.id.try_into().unwrap()),
+                                file_contents: Some(file_contents), 
                             };
                             contract_map.insert(contract_name.to_owned(), contract);
                         }
