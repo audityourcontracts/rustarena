@@ -138,7 +138,7 @@ fn process_results(repo: &Repo, truncate: bool, keep_unsupported: bool) -> Resul
                     let repo_path = Path::new(&repo.name).strip_prefix("repos")?;
                     let json_data = serde_json::to_string_pretty(&sorted_contracts)?;
                     let json_filename = format!("results/{}_contracts.json", &repo_path.to_string_lossy());
-                    log::info!("Writing {}", &json_filename);
+                    log::debug!("Writing {}", &json_filename);
                     fs::write(json_filename, json_data)?;
                 }
                 Err(err) => {
