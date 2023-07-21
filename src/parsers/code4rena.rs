@@ -31,10 +31,18 @@ impl Code4renaParser {
         tab.navigate_to(&self.url).unwrap();
     
         // Wait until navigation is completed
-        tab.wait_until_navigated()?;
+        match tab.wait_until_navigated() {
+            Ok(_) => {
+                // Navigation completed successfully
+            }
+            Err(err) => {
+                log::error!("Error occurred during navigation: {}", err);
+            }
+        }
     
-        // Wait for page load completion
+        // Wait for page load completion and grab the entire HTML.
         tab.wait_for_element("body").unwrap();
+        
         let remote_object = tab
             .evaluate("document.documentElement.outerHTML", false)
             .ok().unwrap();
