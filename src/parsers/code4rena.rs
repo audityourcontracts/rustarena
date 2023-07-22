@@ -42,7 +42,7 @@ impl Code4renaParser {
     
         // Wait for page load completion and grab the entire HTML.
         tab.wait_for_element("body").unwrap();
-        
+
         let remote_object = tab
             .evaluate("document.documentElement.outerHTML", false)
             .ok().unwrap();
@@ -68,6 +68,7 @@ impl Code4renaParser {
                 }
             }
         }
+        log::info!("parser found {} repos", repos.len());
         Ok(repos)
     }
     

@@ -20,7 +20,7 @@ pub struct SherlockParser{
 impl SherlockParser{
     pub fn new() -> Self {
         SherlockParser{
-            name: "hats".to_string(),
+            name: "sherlock".to_string(),
             url: "https://mainnet-contest.sherlock.xyz/contests".to_string(),
         }
     }
@@ -128,6 +128,7 @@ impl SherlockParser {
         } else {
             log::error!("Error parsing JSON");
         }
+        log::info!("parser found {} repos", repos.len());
         Ok(repos)
     }
 

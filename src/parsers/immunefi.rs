@@ -18,7 +18,7 @@ pub struct ImmunefiParser {
 impl ImmunefiParser {
     pub fn new() -> Self {
         ImmunefiParser {
-            name: "hats".to_string(),
+            name: "immunefi".to_string(),
             url: "https://immunefi.com/explore/".to_string(),
         }
     }
@@ -145,7 +145,7 @@ impl ImmunefiParser {
             let repo = Repo { parser, url, name, commit };
             repos.push(repo);
         }
-        // Return the repos
+        log::info!("parser found {} repos", repos.len());
         Ok(repos)
     }
     

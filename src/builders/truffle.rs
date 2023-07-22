@@ -191,9 +191,15 @@ pub fn process_truffle_directory(repo_directory: &str, artifact_dir: &str) -> (S
                             };
                             
                             let file_contents_path = Path::new(&repo_directory).join(&absolute_path_stripped);
-                            log::info!("Trying to read file in {}", &file_contents_path.to_string_lossy());
-                            let file_contents = std::fs::read_to_string(file_contents_path).unwrap();
-
+                            log::debug!("Trying to read file in {}", &file_contents_path.to_string_lossy());
+                            let file_contents = match std::fs::read_to_string(file_contents_path) {
+                                Ok(contents) => contents,
+                                Err(err) => {
+                                    log::error!("Error trying to read file: {}", err);
+                                    continue;
+                                }
+                            };
+                            
                             let contract = Contract {
                                 contract_name: contract_name.to_owned(),
                                 kind,

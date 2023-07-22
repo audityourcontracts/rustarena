@@ -172,6 +172,7 @@ impl HatsParser {
             log::debug!("Adding repo {:?}", repo);
             repos.push(repo);
         }
+        log::info!("parser found {} repos", repos.len());
         Ok(repos)
     }
 

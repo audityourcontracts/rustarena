@@ -19,12 +19,9 @@ use crate::parsers::parse::Repo;
 #[command(author, version, about, long_about = None)]
 struct Args {
     #[arg(short, long)]
-    truncate: bool,
-
-    #[arg(short, long)]
     github: Option<String>,
 
-    #[arg(short, long, default_value = "10")]
+    #[arg(short, long, default_value = "30")]
     max_builders: usize,
 
     #[arg(short, long, default_value = "false")]
@@ -56,7 +53,7 @@ impl Cli {
             };
             log::debug!("Initiating Github build for {}", &repo.name);
             spawn_blocking(move || {
-                if let Err(err) = process_results(&repo, args.truncate, args.keep_unsupported) {
+                if let Err(err) = process_results(&repo, args.keep_unsupported) {
                     log::error!("Error processing repository: {}", err);
                 }
             });
@@ -67,7 +64,7 @@ impl Cli {
                     immunefi.parse_dom().await
                 }
             }));
-             
+
             tasks.push(spawn({
                 let code4rena = Arc::new(Code4renaParser::new());
                 async move {
@@ -88,7 +85,7 @@ impl Cli {
                     hats.parse_dom().await
                 }
             }));
-
+            
             //Set the maximum number of concurrent builders.
             let semaphore = Arc::new(Semaphore::new(args.max_builders));
             
@@ -99,11 +96,10 @@ impl Cli {
                 .flat_map(|result| result.unwrap())
                 .map(|repo| {
                     let semaphore = Arc::clone(&semaphore);
-            
                     // Spawn a task for each repository
                     spawn(async move {
                         let permit = semaphore.acquire().await.expect("Failed to acquire semaphore permit");
-                        if let Err(err) = process_results(&repo, args.truncate, args.keep_unsupported) {
+                        if let Err(err) = process_results(&repo, args.keep_unsupported) {
                             log::error!("Error processing repository: {}", err);
                         }
                         drop(permit);
@@ -117,29 +113,33 @@ impl Cli {
     }
 }
 
-fn process_results(repo: &Repo, truncate: bool, keep_unsupported: bool) -> Result<(), Box<dyn std::error::Error>> {
+fn process_results(repo: &Repo, keep_unsupported: bool) -> Result<(), Box<dyn std::error::Error>> {
     match github_api::clone_repository(&repo) {
         Ok(_) => {
             match process_repository(&repo, keep_unsupported) {
                 Ok((_repo_name, contract_data)) => {
-                    let mut sorted_contracts = contract_data;
-                    sorted_contracts.sort_by_key(|contract| match contract.kind {
-                        Kind::Interface => 0,
-                        Kind::Contract => 1,
-                    });
-
-                    // Create a results directory if it doesn't exist. 
-                    let results_dir = Path::new("results");
-                    if !results_dir.exists() {
-                        fs::create_dir(results_dir)?;
+                    if contract_data.len() > 0 {
+                        let mut sorted_contracts = contract_data;
+                        sorted_contracts.sort_by_key(|contract| match contract.kind {
+                            Kind::Interface => 0,
+                            Kind::Contract => 1,
+                        });
+    
+                        // Create a results directory if it doesn't exist. 
+                        let results_dir = Path::new("results");
+                        if !results_dir.exists() {
+                            fs::create_dir(results_dir)?;
+                        }
+    
+                        // Serialize and write the sorted contracts to a JSON file
+                        let repo_path = Path::new(&repo.name).strip_prefix("repos")?;
+                        let json_data = serde_json::to_string_pretty(&sorted_contracts)?;
+                        let json_filename = format!("results/{}_{}_contracts.json", &repo.parser, &repo_path.to_string_lossy());
+                        log::debug!("Writing {}", &json_filename);
+                        fs::write(json_filename, json_data)?;
+                    } else {
+                        log::error!("No contract output for {}", &repo.name);
                     }
-
-                    // Serialize and write the sorted contracts to a JSON file
-                    let repo_path = Path::new(&repo.name).strip_prefix("repos")?;
-                    let json_data = serde_json::to_string_pretty(&sorted_contracts)?;
-                    let json_filename = format!("results/{}_contracts.json", &repo_path.to_string_lossy());
-                    log::debug!("Writing {}", &json_filename);
-                    fs::write(json_filename, json_data)?;
                 }
                 Err(err) => {
                     log::error!("Error processing repository: {}", err);
@@ -152,21 +152,3 @@ fn process_results(repo: &Repo, truncate: bool, keep_unsupported: bool) -> Resul
     }
     Ok(())
 }    
-
-fn print_bytecode(bytecode: String, truncate: bool) {
-    if truncate {
-        let truncated_bytecode = truncate_bytecode(&bytecode);
-        println!("Bytecode: {}", truncated_bytecode);
-    } else {
-        println!("Bytecode: {}", bytecode);
-    }
-}
-
-fn truncate_bytecode(bytecode: &str) -> String {
-    const MAX_BYTECODE_LENGTH: usize = 100;
-    if bytecode.len() > MAX_BYTECODE_LENGTH {
-        format!("{}...", &bytecode[..MAX_BYTECODE_LENGTH])
-    } else {
-        bytecode.to_owned()
-    }
-}
