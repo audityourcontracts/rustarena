@@ -1,7 +1,7 @@
 use std::process::{Command, exit};
-use ethers_solc::artifacts::{ImportDirective, NodeType};
+use ethers_solc::artifacts::NodeType;
 use log;
-use std::path::{Path};
+use std::path::Path;
 use std::env;
 use std::collections::HashMap;
 use walkdir::WalkDir;
